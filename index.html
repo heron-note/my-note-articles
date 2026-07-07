@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>note エクスポート記事 検索・管理スタジオ</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f5f5f7;
+      --card: #ffffff;
+      --text: #1d1d1f;
+      --muted: #6e6e73;
+      --accent: #0071e3;
+      --border: #d2d2d7;
+      --ok: #248a3d;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1e;
+        --card: #2c2c2e;
+        --text: #f5f5f7;
+        --muted: #98989d;
+        --accent: #409cff;
+        --border: #48484a;
+        --ok: #30d158;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .wrapper {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      height: 100vh;
+    }
+    @media (max-width: 768px) {
+      .wrapper { grid-template-columns: 1fr; height: auto; }
+    }
+    
+    /* サイドバー */
+    sidebar {
+      background: var(--card);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+    }
+    @media (max-width: 768px) {
+      sidebar { border-right: none; border-bottom: 1px solid var(--border); max-height: 600px; }
+    }
+    
+    /* メインコンテンツ */
+    main {
+      padding: 24px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    h1 { font-size: 1.1rem; margin: 0; }
+    label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem; color: var(--muted); }
+    input[type="text"] {
+      width: 100%; font: inherit; padding: 8px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text);
+    }
+    
+    /* ドロップゾーン */
+    .dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+      background: var(--bg);
+      cursor: pointer;
+    }
+    .dropzone.dragover {
+      border-color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 8%, var(--bg));
+    }
+    .dropzone input[type="file"] { display: none; }
+
+    .status { font-size: 0.8rem; color: var(--accent); min-height: 1.2em; margin-top: 2px; }
+    .status.ok { color: var(--ok); }
+    
+    /* リストヘッダー（件数＆ソートトグル） */
+    .list-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+      margin-top: 4px;
+    }
+    .match-count {
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .sort-toggle {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .sort-toggle:hover {
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+    }
+
+    /* 記事リスト */
+    .article-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-grow: 1;
+      overflow-y: auto;
+      min-height: 200px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px;
+      background: var(--bg);
+    }
+    .article-item {
+      padding: 8px 12px; background: var(--card); border-radius: 6px;
+      cursor: pointer; border: 1px solid transparent; font-size: 0.85rem;
+    }
+    .article-item:hover { border-color: var(--accent); }
+    .article-item.active { background: var(--accent); color: white; }
+    .article-item .date { font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 2px; }
+
+    /* 記事ビューア */
+    .viewer h2 { margin: 0 0 4px 0; font-size: 1.3rem; }
+    .viewer .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 12px; }
+    .viewer .body {
+      background: var(--card); padding: 16px; border-radius: 12px;
+      border: 1px solid var(--border); white-space: pre-wrap;
+      word-break: break-word; font-size: 0.95rem;
+    }
+    .copy-btn { width: auto; padding: 6px 12px; font-size: 0.8rem; margin-bottom: 12px; border: none; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; font-weight: 600; }
+    
+    .placeholder-text { color: var(--muted); margin: auto; text-align: center; font-size: 0.9rem; }
+    .placeholder-text::before { content: "← リストから記事を選択するか、zipファイルをインポートしてください。"; }
+    @media (max-width: 768px) {
+      .placeholder-text::before { content: "↑ リストから記事を選択するか、zipファイルをインポートしてください。"; }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+
+  <div class="wrapper">
+    <!-- サイドバー -->
+    <sidebar>
+      <div>
+        <h1>記事検索・管理スタジオ</h1>
+        <div id="status" class="status">DB接続中...</div>
+      </div>
+
+      <!-- ZIP直接ドロップエリア -->
+      <div class="card">
+        <div id="dropzone" class="dropzone">
+          <div style="font-weight:600; font-size:0.85rem;">zip をドロップ または クリック</div>
+          <input id="zipInput" type="file" accept=".zip">
+        </div>
+      </div>
+
+      <!-- 検索コントロールのみ（ソート枠を排除してスッキリ） -->
+      <div class="card" style="display:flex; flex-direction:column; gap:8px;">
+        <div>
+          <label for="searchQuery">フリーワード検索</label>
+          <input id="searchQuery" type="text" placeholder="スペース区切りでAND検索">
+        </div>
+        <div>
+          <label for="searchTags">タグ検索</label>
+          <input id="searchTags" type="text" placeholder="例: AI小説 スタンプ">
+        </div>
+      </div>
+
+      <!-- リストヘッダー（ソート切り替えボタンをリスト直上に配置） -->
+      <div class="list-header">
+        <span id="matchCount" class="match-count">該当: 0件</span>
+        <button id="sortToggleBtn" class="sort-toggle">▼ 新しい順</button>
+      </div>
+      
+      <!-- 記事リスト -->
+      <div id="articleList" class="article-list"></div>
+    </sidebar>
+
+    <!-- メインビューア -->
+    <main>
+      <div id="viewer" class="viewer" style="display: none;">
+        <h2 id="viewTitle">記事タイトル</h2>
+        <div id="viewMeta" class="meta">日付: -- | タグ: --</div>
+        <button id="copyBodyBtn" class="copy-btn">📋 本文を一撃コピー</button>
+        <div id="viewBody" class="body"></div>
+      </div>
+      <div id="viewerPlaceholder" class="placeholder-text"></div>
+    </main>
+  </div>
+
+  <script>
+    "use strict";
+
+    const DB_NAME = "NoteUniversalArchiveDB";
+    const DB_VERSION = 1;
+    const STORE_NAME = "articles";
+    let db = null;
+    let allArticles = [];
+    let dragDepth = 0;
+    let currentSortOrder = "desc"; // デフォルト最新順
+
+    const els = {
+      dropzone: document.getElementById("dropzone"),
+      zipInput: document.getElementById("zipInput"),
+      searchQuery: document.getElementById("searchQuery"),
+      searchTags: document.getElementById("searchTags"),
+      sortToggleBtn: document.getElementById("sortToggleBtn"),
+      articleList: document.getElementById("articleList"),
+      matchCount: document.getElementById("matchCount"),
+      status: document.getElementById("status"),
+      viewer: document.getElementById("viewer"),
+      viewerPlaceholder: document.getElementById("viewerPlaceholder"),
+      viewTitle: document.getElementById("viewTitle"),
+      viewMeta: document.getElementById("viewMeta"),
+      viewBody: document.getElementById("viewBody"),
+      copyBodyBtn: document.getElementById("copyBodyBtn")
+    };
+
+    // 1. IndexedDB初期化
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      e.target.result.createObjectStore(STORE_NAME, { keyPath: "title" });
+    };
+    request.onsuccess = (e) => {
+      db = e.target.result;
+      els.status.textContent = "データベース準備完了";
+      loadArticlesFromDB();
+    };
+
+    function loadArticlesFromDB() {
+      const transaction = db.transaction(STORE_NAME, "readonly");
+      const getAllRequest = transaction.objectStore(STORE_NAME).getAll();
+      getAllRequest.onsuccess = () => {
+        allArticles = getAllRequest.result;
+        renderList();
+      };
+    }
+
+    // 2. ZIPファイルを直接解体してインポート
+    async function processZip(file) {
+      if (!file) return;
+      els.status.className = "status";
+      els.status.textContent = "zip読み込み中...";
+
+      try {
+        const zip = await JSZip.loadAsync(file);
+        const xmlEntries = Object.keys(zip.files).filter(name => !zip.files[name].dir && /\.xml$/i.test(name));
+        
+        if (xmlEntries.length === 0) throw new Error("zip内にXMLが見つかりません。");
+
+        els.status.textContent = "同期中...";
+        const transaction = db.transaction(STORE_NAME, "readwrite");
+        const store = transaction.objectStore(STORE_NAME);
+        let importCount = 0;
+
+        for (const path of xmlEntries) {
+          const xmlText = await zip.files[path].async("string");
+          const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+          const items = doc.getElementsByTagName("item");
+
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const postType = item.getElementsByTagName("wp:post_type")[0]?.textContent?.trim();
+            const status = item.getElementsByTagName("wp:status")[0]?.textContent?.trim();
+            
+            if (postType !== "post" && postType !== "page") continue;
+            if (status && status !== "publish") continue;
+
+            const title = item.getElementsByTagName("title")[0]?.textContent?.trim() || "untitled";
+            const date = item.getElementsByTagName("wp:post_date")[0]?.textContent?.trim() || "unknown";
+            const rawBody = item.getElementsByTagName("content:encoded")[0]?.textContent || "";
+            const body = htmlToText(rawBody);
+            if (!body) continue;
+
+            const tagRegex = /#([^\s#]+)/g;
+            const tags = [];
+            let match;
+            while ((match = tagRegex.exec(body)) !== null) {
+              if (!tags.includes(match[1])) tags.push(match[1]);
+            }
+
+            store.put({ title, date, body, tags });
+            importCount++;
+          }
+        }
+
+        transaction.oncomplete = () => {
+          els.status.className = "status ok";
+          els.status.textContent = `${importCount}件の記事を同期しました`;
+          loadArticlesFromDB();
+        };
+
+      } catch (err) {
+        els.status.className = "status";
+        els.status.textContent = "エラー: " + err.message;
+      }
+    }
+
+    function splitKeywords(inputStr) {
+      return inputStr.replace(/　/g, " ").toLowerCase().split(/\s+/).filter(w => w);
+    }
+
+    // 3. リスト描画とソートの反映
+    function renderList() {
+      const queryWords = splitKeywords(els.searchQuery.value);
+      const tagWords = splitKeywords(els.searchTags.value);
+
+      let filtered = allArticles.filter(art => {
+        const bodyAndTitle = (art.title + " " + art.body).toLowerCase();
+        const matchQuery = queryWords.every(word => bodyAndTitle.includes(word));
+
+        const artTagsLower = art.tags.map(t => t.toLowerCase());
+        const matchTags = tagWords.every(word => artTagsLower.includes(word.replace("#", "")));
+
+        return matchQuery && matchTags;
+      });
+
+      // 現在のソート状態で並び替え
+      filtered.sort((a, b) => {
+        return currentSortOrder === "desc" 
+          ? new Date(b.date) - new Date(a.date) 
+          : new Date(a.date) - new Date(b.date);
+      });
+
+      els.matchCount.textContent = `該当: ${filtered.length}件`;
+      els.articleList.innerHTML = "";
+
+      filtered.forEach(art => {
+        const item = document.createElement("div");
+        item.className = "article-item";
+        item.innerHTML = `<span class="date">${art.date}</span><strong>${art.title}</strong>`;
+        
+        item.addEventListener("click", () => {
+          document.querySelectorAll(".article-item").forEach(el => el.classList.remove("active"));
+          item.classList.add("active");
+          showArticle(art);
+        });
+        els.articleList.appendChild(item);
+      });
+    }
+
+    // 4. ソート順切り替えイベント（ボタンをコントロールエリアから排除）
+    els.sortToggleBtn.addEventListener("click", () => {
+      if (currentSortOrder === "desc") {
+        currentSortOrder = "asc";
+        els.sortToggleBtn.textContent = "▲ 古い順";
+      } else {
+        currentSortOrder = "desc";
+        els.sortToggleBtn.textContent = "▼ 新しい順";
+      }
+      renderList();
+    });
+
+    // 5. 記事ビューアとコピー
+    let activeArticle = null;
+    function showArticle(art) {
+      activeArticle = art;
+      els.viewerPlaceholder.style.display = "none";
+      els.viewer.style.display = "block";
+      els.viewTitle.textContent = art.title;
+      els.viewMeta.textContent = `投稿日: ${art.date} | タグ: ${art.tags.length ? art.tags.map(t => "#" + t).join(" ") : "なし"}`;
+      els.viewBody.textContent = art.body;
+    }
+
+    els.copyBodyBtn.addEventListener("click", () => {
+      if (!activeArticle) return;
+      navigator.clipboard.writeText(activeArticle.body).then(() => {
+        const originalText = els.copyBodyBtn.textContent;
+        els.copyBodyBtn.textContent = "📋 コピー完了！";
+        setTimeout(() => els.copyBodyBtn.textContent = originalText, 1500);
+      });
+    });
+
+    // イベント制御
+    els.dropzone.addEventListener("click", () => els.zipInput.click());
+    els.zipInput.addEventListener("change", (e) => processZip(e.target.files[0]));
+
+    els.dropzone.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; els.dropzone.classList.add("dragover"); });
+    els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); });
+    els.dropzone.addEventListener("dragleave", (e) => { e.preventDefault(); dragDepth--; if (dragDepth <= 0) els.dropzone.classList.remove("dragover"); });
+    els.dropzone.addEventListener("drop", (e) => {
+      e.preventDefault(); dragDepth = 0; els.dropzone.classList.remove("dragover");
+      if (e.dataTransfer.files?.[0]) processZip(e.dataTransfer.files[0]);
+    });
+
+    els.searchQuery.addEventListener("input", renderList);
+    els.searchTags.addEventListener("input", renderList);
+
+    function htmlToText(value) {
+      let text = value;
+      text = text.replace(/<br\s*\/?>/gi, "
+");
+      text = text.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li|ul|ol|blockquote|pre|tr)>/gi, "
+");
+      text = text.replace(/<hr\s*\/?>/gi, "
+---
+");
+      text = text.replace(/<script[\s\S]*?<\/script>/gi, "");
+      text = text.replace(/<style[\s\S]*?<\/script>/gi, "");
+      text = text.replace(/<[^>]+>/g, "");
+      const ta = document.createElement("textarea");
+      ta.innerHTML = text;
+      text = ta.value;
+      text = text.replace(/
+/g, "
+").replace(//g, "
+").replace(/
+{3,}/g, "
+
+");
+      return text.trim();
+    }
+  </script>
+</body>
+</html>
