@@ -53,7 +53,7 @@
       width: 100%; font: inherit; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
       background: var(--bg); color: var(--text);
     }
-    sidebar .card .date-range input[type="date"] {
+    .sidebar .card input[type="text"].date-input {
       width: 100% !important; font: inherit; height: 42px !important; padding: 0 12px !important; border: 1px solid var(--border) !important; border-radius: 8px !important;
       background: var(--bg) !important; color: var(--text) !important; display: block !important; box-sizing: border-box !important; margin: 0 !important;
     }
@@ -149,10 +149,10 @@
         <h1 style="display:inline-block; font-size:1.1rem; margin:0;">記事管理スタジオ</h1>
         <div class="status-area">
           <div id="status" class="status">DB接続中...</div>
-          <button id="clearDbBtn" class="clear-db-btn">$26A0$FE0F DBクリア</button>
+          <button id="clearDbBtn" class="clear-db-btn">DBクリア</button>
         </div>
       </div>
-      <button id="mobileToggleBtn" class="mobile-filter-toggle">$D83D$DD0D 検索・インポート条件を開く</button>
+      <button id="mobileToggleBtn" class="mobile-filter-toggle">検索・インポート条件を開く</button>
       <div id="filterSection" class="filter-section">
         <div class="card">
           <div id="dropzone" class="dropzone">
@@ -163,18 +163,18 @@
         <div class="card" style="display:flex; flex-direction:column; gap:6px;">
           <div><label for="searchQuery">フリーワード検索</label><input id="searchQuery" type="text" placeholder="スペース区切りでAND検索" autocomplete="off"></div>
           <div class="input-container"><label for="searchNoun">名詞で絞り込み</label><input id="searchNoun" type="text" placeholder="タップで頻出名詞一覧を表示" autocomplete="off"><div id="nounSuggestList" class="suggest-list"></div></div>
-          <div><label>日付期間検索</label><div class="date-range"><input id="dateStart" type="date"><div class="date-separator">$301C</div><input id="dateEnd" type="date"></div></div>
-          <button id="startPipelineBtn" class="action-btn btn-ok">$D83D$DCE5 マッチ記事を順次ZIP保存</button>
+          <div><label>日付期間検索</label><div class="date-range"><input id="dateStart" class="date-input" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" autocomplete="off"><div class="date-separator">-</div><input id="dateEnd" class="date-input" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" autocomplete="off"></div></div>
+          <button id="startPipelineBtn" class="action-btn btn-ok">マッチ記事を順次ZIP保存</button>
         </div>
       </div>
-      <div class="list-header"><span id="matchCount" class="match-count">該当: 0件</span><button id="sortToggleBtn" class="sort-toggle">▼ 新しい順</button></div>
+      <div class="list-header"><span id="matchCount" class="match-count">該当: 0件</span><button id="sortToggleBtn" class="sort-toggle">新しい順</button></div>
       <div id="articleList" class="article-list"></div>
     </sidebar>
     <main id="pcMain">
       <div id="viewer" class="viewer" style="display: none;">
         <div class="viewer-content">
           <h2 id="viewTitle">記事タイトル</h2><div id="viewMeta" class="meta">日付: --</div>
-          <div><button id="copyBodyBtn" class="action-btn btn-accent">$D83D$DCCB 本文を一撃コピー</button></div>
+          <div><button id="copyBodyBtn" class="action-btn btn-accent">本文を一撃コピー</button></div>
           <div id="viewBody" class="body"></div>
           <div id="viewNouns" class="noun-container"></div>
         </div>
@@ -188,7 +188,7 @@
       <div class="viewer">
         <div class="viewer-content">
           <h2 id="modalTitle">記事タイトル</h2><div id="modalMeta" class="meta">日付: --</div>
-          <div><button id="modalCopyBtn" class="action-btn btn-accent">$D83D$DCCB 本文を一撃コピー</button></div>
+          <div><button id="modalCopyBtn" class="action-btn btn-accent">本文を一撃コピー</button></div>
           <div id="modalBody" class="body"></div>
           <div id="modalNouns" class="noun-container"></div>
         </div>
@@ -197,7 +197,7 @@
   </div>
   <div id="pipelineModal" class="pipeline-modal">
     <div class="pipeline-box">
-      <h3 style="margin:0; font-size:1.1rem;">$D83D$DCE6 順次ZIPエクスポート</h3>
+      <h3 style="margin:0; font-size:1.1rem;">順次ZIPエクスポート</h3>
       <div id="pipelineStatus" style="font-size:0.9rem; color:var(--accent);">準備中...</div>
       <progress id="pipelineProgress" max="100" value="0"></progress>
       <div class="pipeline-actions">
@@ -339,17 +339,31 @@
         renderList();
       }
 
+      const WORKER_INIT_TIMEOUT_MS = 120000;
+      const EXTRACT_TIMEOUT_MS = 30000;
+
       function ensureNounWorker() {
         if (nounWorkerReady) return Promise.resolve();
         if (nounWorkerInitPromise) return nounWorkerInitPromise;
         nounWorkerInitPromise = new Promise((resolve, reject) => {
+          let settled = false;
+          const finish = (fn, val) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timeoutId);
+            fn(val);
+          };
           nounWorker = new Worker("noun-worker.js");
           nounWorker.onmessage = (e) => {
             const { type, id, nouns, message } = e.data;
+            if (type === "status" && id === "init") {
+              els.status.textContent = message;
+              return;
+            }
             if (type === "ready" && id === "init") {
               nounWorkerReady = true;
               workerWaiters.delete("init");
-              resolve();
+              finish(resolve);
               return;
             }
             const waiter = workerWaiters.get(id);
@@ -358,9 +372,20 @@
             if (type === "extracted") waiter.resolve(nouns);
             else if (type === "error") waiter.reject(new Error(message));
           };
-          nounWorker.onerror = (err) => reject(err);
-          workerWaiters.set("init", { resolve, reject });
+          nounWorker.onerror = (err) => {
+            workerWaiters.delete("init");
+            nounWorkerInitPromise = null;
+            finish(reject, err);
+          };
+          workerWaiters.set("init", { resolve: () => finish(resolve), reject: (e) => finish(reject, e) });
           nounWorker.postMessage({ type: "init", id: "init" });
+          const timeoutId = setTimeout(() => {
+            workerWaiters.delete("init");
+            try { nounWorker.terminate(); } catch (_) {}
+            nounWorker = null;
+            nounWorkerInitPromise = null;
+            finish(reject, new Error("形態素解析エンジンの初期化がタイムアウトしました"));
+          }, WORKER_INIT_TIMEOUT_MS);
         });
         return nounWorkerInitPromise;
       }
@@ -372,7 +397,14 @@
             return;
           }
           const id = "req_" + (++workerReqSeq);
-          workerWaiters.set(id, { resolve, reject });
+          const timeoutId = setTimeout(() => {
+            workerWaiters.delete(id);
+            reject(new Error("名詞抽出タイムアウト"));
+          }, EXTRACT_TIMEOUT_MS);
+          workerWaiters.set(id, {
+            resolve: (nouns) => { clearTimeout(timeoutId); resolve(nouns); },
+            reject: (err) => { clearTimeout(timeoutId); reject(err); }
+          });
           nounWorker.postMessage({ type: "extract", id, title, body });
         });
       }
@@ -465,13 +497,33 @@
           if (parsedArticles.length === 0) throw new Error("取り込める記事がありません。");
 
           els.status.textContent = "形態素解析エンジン準備中...";
-          await ensureNounWorker();
+          let useNouns = true;
+          try {
+            await ensureNounWorker();
+          } catch (_) {
+            useNouns = false;
+            els.status.textContent = "警告: 名詞解析をスキップしてインポート続行...";
+          }
 
           for (let i = 0; i < parsedArticles.length; i++) {
             const art = parsedArticles[i];
-            els.status.textContent = `名詞抽出中... ${i + 1}/${parsedArticles.length}`;
-            const nouns = await extractNounsFromText(art.title, art.body);
-            await saveArticleWithNouns(art, nouns);
+            els.status.textContent = useNouns
+              ? `名詞抽出中... ${i + 1}/${parsedArticles.length}`
+              : `同期中... ${i + 1}/${parsedArticles.length}`;
+            if (useNouns) {
+              try {
+                const nouns = await extractNounsFromText(art.title, art.body);
+                await saveArticleWithNouns(art, nouns);
+              } catch (_) {
+                const tx = db.transaction(STORE_ARTICLES, "readwrite");
+                tx.objectStore(STORE_ARTICLES).put(art);
+                await waitTx(tx);
+              }
+            } else {
+              const tx = db.transaction(STORE_ARTICLES, "readwrite");
+              tx.objectStore(STORE_ARTICLES).put(art);
+              await waitTx(tx);
+            }
             await new Promise(r => setTimeout(r, 0));
           }
 
@@ -498,13 +550,19 @@
         return ids;
       }
 
+      function normalizeDateInput(val) {
+        if (!val) return "";
+        const t = val.trim().replace(/\//g, "-");
+        return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : "";
+      }
+
       function renderList() {
         const queryWords = splitKeywords(els.searchQuery.value);
         const nounInput = els.searchNoun.value.trim();
         const nounWords = splitKeywords(nounInput);
         const nounFilterIds = resolveNounFilterIds(nounInput);
-        const startVal = els.dateStart.value;
-        const endVal = els.dateEnd.value;
+        const startVal = normalizeDateInput(els.dateStart.value);
+        const endVal = normalizeDateInput(els.dateEnd.value);
 
         currentFiltered = allArticles.filter(art => {
           const bodyAndTitle = (art.title + " " + art.body).toLowerCase();
@@ -626,14 +684,14 @@
               pipePendingBlob = blob;
               pipePendingFilename = zipName;
               els.pipelineProgress.value = Math.round(((i + 1) / currentFiltered.length) * 100);
-              els.pipelineStatus.textContent = `バッチ ${batchIndex} (${startNo}$301C${endNo}) の準備完了。`;
+              els.pipelineStatus.textContent = `バッチ ${batchIndex} (${startNo}-${endNo}) の準備完了。`;
               await waitForPipeDownloadOrContinue(token);
               batchArticles = [];
               batchIndex++;
             }
           }
 
-          els.pipelineStatus.textContent = `$D83C$DF89 全てのエクスポートが完了しました！計 ${articleIndex - 1} 記事`;
+          els.pipelineStatus.textContent = `全てのエクスポートが完了しました。計 ${articleIndex - 1} 記事`;
           els.pipeDownloadBtn.disabled = true;
           els.pipeContinueBtn.textContent = "閉じる";
           els.pipeContinueBtn.disabled = false;
@@ -673,7 +731,7 @@
         renderList();
         if (window.innerWidth <= 768) {
           els.filterSection.classList.remove("open");
-          els.mobileToggleBtn.textContent = "$D83D$DD0D 検索・インポート条件を開く";
+          els.mobileToggleBtn.textContent = "検索・インポート条件を開く";
           els.mobileModal.classList.remove("open");
         }
       }
@@ -721,7 +779,7 @@
         navigator.clipboard.writeText(activeArticle.body).then(() => {
           const targetBtn = window.innerWidth <= 768 ? els.modalCopyBtn : els.copyBodyBtn;
           const originalText = targetBtn.textContent;
-          targetBtn.textContent = "$D83D$DCCB コピー完了！";
+          targetBtn.textContent = "コピー完了";
           setTimeout(() => { targetBtn.textContent = originalText; }, 1500);
         });
       }
@@ -734,13 +792,13 @@
       els.mobileToggleBtn.addEventListener("click", () => {
         els.filterSection.classList.toggle("open");
         els.mobileToggleBtn.textContent = els.filterSection.classList.contains("open")
-          ? "▲ 検索・インポート条件を閉じる"
-          : "$D83D$DD0D 検索・インポート条件を開く";
+          ? "検索・インポート条件を閉じる"
+          : "検索・インポート条件を開く";
       });
 
       els.sortToggleBtn.addEventListener("click", () => {
         currentSortOrder = (currentSortOrder === "desc") ? "asc" : "desc";
-        els.sortToggleBtn.textContent = (currentSortOrder === "desc") ? "▼ 新しい順" : "▲ 古い順";
+        els.sortToggleBtn.textContent = (currentSortOrder === "desc") ? "新しい順" : "古い順";
         renderList();
       });
 
@@ -777,8 +835,8 @@
       els.searchNoun.addEventListener("focus", showNounSuggestions);
       els.searchNoun.addEventListener("input", () => { showNounSuggestions(); renderList(); });
       els.searchNoun.addEventListener("blur", () => { els.nounSuggestList.style.display = "none"; });
-      els.dateStart.addEventListener("change", renderList);
-      els.dateEnd.addEventListener("change", renderList);
+      els.dateStart.addEventListener("input", renderList);
+      els.dateEnd.addEventListener("input", renderList);
 
       function htmlToText(value) {
         let text = value;
