@@ -55,6 +55,12 @@
       width: 100% !important; font: inherit; height: 42px !important; padding: 0 12px !important; border: 1px solid var(--border) !important; border-radius: 8px !important;
       background: var(--bg) !important; color: var(--text) !important; display: block !important; box-sizing: border-box !important; margin: 0 !important;
     }
+    sidebar .card .date-range input[type="date"]:not(.has-value):not(:focus)::-webkit-datetime-edit {
+      opacity: 0;
+    }
+    sidebar .card .date-range input[type="date"]:not(.has-value)::-webkit-calendar-picker-indicator {
+      opacity: 1;
+    }
     sidebar .card .date-range { display: flex !important; flex-direction: column !important; gap: 4px !important; width: 100% !important; box-sizing: border-box !important; }
     .date-separator { text-align: center; font-size: 0.75rem; color: var(--muted); margin: 2px 0; font-weight: bold; width: 100%; }
     
@@ -318,11 +324,24 @@
             if(window.innerWidth <= 768) { els.mobileModal.classList.remove("open"); els.filterSection.classList.remove("open"); }
         }
 
-        els.zipInput.onchange = (e) => processZip(e.target.files[0]);
+        els.dropzone.addEventListener("click", () => els.zipInput.click());
+        els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); els.dropzone.classList.add("dragover"); });
+        els.dropzone.addEventListener("dragleave", () => els.dropzone.classList.remove("dragover"));
+        els.dropzone.addEventListener("drop", (e) => {
+            e.preventDefault();
+            els.dropzone.classList.remove("dragover");
+            const file = e.dataTransfer.files[0];
+            if (file && /\.zip$/i.test(file.name)) processZip(file);
+        });
+        els.zipInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) processZip(file);
+            e.target.value = "";
+        };
         els.searchQuery.oninput = renderList;
         els.searchTags.oninput = renderList;
-        els.dateStart.onchange = renderList;
-        els.dateEnd.onchange = renderList;
+        els.dateStart.addEventListener("change", () => { els.dateStart.classList.toggle("has-value", !!els.dateStart.value); renderList(); });
+        els.dateEnd.addEventListener("change", () => { els.dateEnd.classList.toggle("has-value", !!els.dateEnd.value); renderList(); });
 
         function htmlToText(v) { return v.replace(/<[^>]+>/g, "").trim(); }
     }
