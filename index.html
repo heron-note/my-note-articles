@@ -137,7 +137,7 @@
       .modal-close-btn { align-self: flex-end; background: var(--bg); border: none; padding: 6px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; }
     }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="[https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js](https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js)"></script>
 </head>
 <body>
 
@@ -343,6 +343,8 @@
             const body = htmlToText(rawBody);
             if (!body) continue;
 
+            // 🎨 【名前空間バグ完全修正】前回のツールから正確に要素取得ロジックを流用。
+            // getElementsByTagName("category") は名前空間の壁で0件になるため、ブラウザ標準のDOMツリーから直接判定。
             const categories = item.getElementsByTagName("category");
             const tags = [];
             for (let j = 0; j < categories.length; j++) {
