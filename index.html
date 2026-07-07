@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>note エクスポート記事 検索・管理スタジオ</title>
+  <script src="jszip.min.js"></script>
   <style>
     :root {
       color-scheme: light dark;
@@ -30,7 +31,6 @@
         --ok: #30d158;
         --warn: #ff9f0a;
         --danger: #ff453a;
-        --modal-bg: rgba(0, 0, 0, 0.6);
         --tag-bg: #3a3a3c;
       }
     }
@@ -46,8 +46,6 @@
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; width: 100%; }
     h1 { font-size: 1.1rem; margin: 0; }
     label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem; color: var(--muted); }
-    
-    .input-container { position: relative; }
     
     sidebar .card input[type="text"] {
       width: 100%; font: inherit; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
@@ -137,10 +135,8 @@
       .modal-close-btn { align-self: flex-end; background: var(--bg); border: none; padding: 6px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; }
     }
   </style>
-  <script src="[https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js](https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js)"></script>
 </head>
 <body>
-
   <div class="wrapper">
     <sidebar>
       <div>
@@ -150,9 +146,7 @@
           <button id="clearDbBtn" class="clear-db-btn">⚠️ DBクリア</button>
         </div>
       </div>
-
       <button id="mobileToggleBtn" class="mobile-filter-toggle">🔍 検索・インポート条件を開く</button>
-
       <div id="filterSection" class="filter-section">
         <div class="card">
           <div id="dropzone" class="dropzone">
@@ -160,66 +154,39 @@
             <input id="zipInput" type="file" accept=".zip">
           </div>
         </div>
-
         <div class="card" style="display:flex; flex-direction:column; gap:6px;">
-          <div>
-            <label for="searchQuery">フリーワード検索</label>
-            <input id="searchQuery" type="text" placeholder="スペース区切りでAND検索" autocomplete="off">
-          </div>
-          <div class="input-container">
-            <label for="searchTags">タグ検索</label>
-            <input id="searchTags" type="text" placeholder="タップで登録タグ一覧を表示" autocomplete="off">
-            <div id="suggestList" class="suggest-list"></div>
-          </div>
-          <div>
-            <label>日付期間検索</label>
-            <div class="date-range">
-              <input id="dateStart" type="date">
-              <div class="date-separator">〜</div>
-              <input id="dateEnd" type="date">
-            </div>
-          </div>
+          <div><label for="searchQuery">フリーワード検索</label><input id="searchQuery" type="text" placeholder="スペース区切りでAND検索" autocomplete="off"></div>
+          <div class="input-container"><label for="searchTags">タグ検索</label><input id="searchTags" type="text" placeholder="タップで登録タグ一覧を表示" autocomplete="off"><div id="suggestList" class="suggest-list"></div></div>
+          <div><label>日付期間検索</label><div class="date-range"><input id="dateStart" type="date"><div class="date-separator">〜</div><input id="dateEnd" type="date"></div></div>
           <button id="startPipelineBtn" class="action-btn btn-ok">📥 マッチ記事を順次ZIP保存</button>
         </div>
       </div>
-
-      <div class="list-header">
-        <span id="matchCount" class="match-count">該当: 0件</span>
-        <button id="sortToggleBtn" class="sort-toggle">▼ 新しい順</button>
-      </div>
-      
+      <div class="list-header"><span id="matchCount" class="match-count">該当: 0件</span><button id="sortToggleBtn" class="sort-toggle">▼ 新しい順</button></div>
       <div id="articleList" class="article-list"></div>
     </sidebar>
-
     <main id="pcMain">
       <div id="viewer" class="viewer" style="display: none;">
         <div class="viewer-content">
-          <h2 id="viewTitle">記事タイトル</h2>
-          <div id="viewMeta" class="meta">日付: --</div>
+          <h2 id="viewTitle">記事タイトル</h2><div id="viewMeta" class="meta">日付: --</div>
           <div><button id="copyBodyBtn" class="action-btn btn-accent">📋 本文を一撃コピー</button></div>
-          <div id="viewBody" class="body"></div>
-          <div id="viewTags" class="tag-container"></div>
+          <div id="viewBody" class="body"></div><div id="viewTags" class="tag-container"></div>
         </div>
       </div>
       <div id="viewerPlaceholder" class="placeholder-text"></div>
     </main>
   </div>
-
   <div id="mobileModal" class="modal-viewer">
     <div class="modal-content">
       <button id="modalCloseBtn" class="modal-close-btn">閉じる</button>
       <div class="viewer">
         <div class="viewer-content">
-          <h2 id="modalTitle">記事タイトル</h2>
-          <div id="modalMeta" class="meta">日付: --</div>
+          <h2 id="modalTitle">記事タイトル</h2><div id="modalMeta" class="meta">日付: --</div>
           <div><button id="modalCopyBtn" class="action-btn btn-accent">📋 本文を一撃コピー</button></div>
-          <div id="modalBody" class="body"></div>
-          <div id="modalTags" class="tag-container"></div>
+          <div id="modalBody" class="body"></div><div id="modalTags" class="tag-container"></div>
         </div>
       </div>
     </div>
   </div>
-
   <div id="pipelineModal" class="pipeline-modal">
     <div class="pipeline-box">
       <h3 style="margin:0; font-size:1.1rem;">📦 順次ZIPエクスポート</h3>
@@ -232,433 +199,132 @@
       </div>
     </div>
   </div>
-
   <script>
     "use strict";
-
-    const DB_NAME = "NoteUniversalArchiveDB";
-    const DB_VERSION = 1;
-    const STORE_NAME = "articles";
-    let db = null;
-    let allArticles = [];
-    let currentFiltered = [];
-    let dragDepth = 0;
-    let currentSortOrder = "desc";
-    let tagCounts = {};
-
-    let pipelineToken = 0;
-    let pipePendingBlob = null;
-    let pipePendingFilename = "";
-    let pipeDownloadUrl = "";
-
-    const els = {
-      dropzone: document.getElementById("dropzone"),
-      zipInput: document.getElementById("zipInput"),
-      searchQuery: document.getElementById("searchQuery"),
-      searchTags: document.getElementById("searchTags"),
-      dateStart: document.getElementById("dateStart"),
-      dateEnd: document.getElementById("dateEnd"),
-      startPipelineBtn: document.getElementById("startPipelineBtn"),
-      clearDbBtn: document.getElementById("clearDbBtn"),
-      suggestList: document.getElementById("suggestList"),
-      sortToggleBtn: document.getElementById("sortToggleBtn"),
-      articleList: document.getElementById("articleList"),
-      matchCount: document.getElementById("matchCount"),
-      status: document.getElementById("status"),
-      viewer: document.getElementById("viewer"),
-      viewerPlaceholder: document.getElementById("viewerPlaceholder"),
-      viewTitle: document.getElementById("viewTitle"),
-      viewMeta: document.getElementById("viewMeta"),
-      viewBody: document.getElementById("viewBody"),
-      viewTags: document.getElementById("viewTags"),
-      copyBodyBtn: document.getElementById("copyBodyBtn"),
-      mobileToggleBtn: document.getElementById("mobileToggleBtn"),
-      filterSection: document.getElementById("filterSection"),
-      mobileModal: document.getElementById("mobileModal"),
-      modalCloseBtn: document.getElementById("modalCloseBtn"),
-      modalTitle: document.getElementById("modalTitle"),
-      modalMeta: document.getElementById("modalMeta"),
-      modalBody: document.getElementById("modalBody"),
-      modalTags: document.getElementById("modalTags"),
-      modalCopyBtn: document.getElementById("modalCopyBtn"),
-      pipelineModal: document.getElementById("pipelineModal"),
-      pipelineStatus: document.getElementById("pipelineStatus"),
-      pipelineProgress: document.getElementById("pipelineProgress"),
-      pipeDownloadBtn: document.getElementById("pipeDownloadBtn"),
-      pipeContinueBtn: document.getElementById("pipeContinueBtn"),
-      pipeCancelBtn: document.getElementById("pipeCancelBtn")
-    };
-
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (e) => { e.target.result.createObjectStore(STORE_NAME, { keyPath: "title" }); };
-    request.onsuccess = (e) => { db = e.target.result; els.status.textContent = "データベース準備完了"; loadArticlesFromDB(); };
-
-    function loadArticlesFromDB() {
-      const transaction = db.transaction(STORE_NAME, "readonly");
-      const getAllRequest = transaction.objectStore(STORE_NAME).getAll();
-      getAllRequest.onsuccess = () => { allArticles = getAllRequest.result; calculateTagCounts(); renderList(); };
-    }
-
-    function calculateTagCounts() {
-      tagCounts = {};
-      allArticles.forEach(art => { (art.tags || []).forEach(tag => { tagCounts[tag] = (tagCounts[tag] || 0) + 1; }); });
-    }
-
-    els.clearDbBtn.addEventListener("click", () => {
-      if (!confirm("データベース内のすべての記事データとタグ情報を完全に消去します。よろしいですか？")) return;
-      if (db) db.close();
-      const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
-      deleteRequest.onsuccess = () => {
-        alert("データベースを完全に初期化しました。最新のパーステストを行うために再読み込みします。");
-        location.reload();
-      };
-      deleteRequest.onerror = () => { alert("DBの削除に失敗しました。ブラウザのタブを一度閉じて試してください。"); };
+    window.addEventListener('load', () => {
+        if (typeof JSZip === 'undefined') {
+            document.getElementById('status').textContent = "エラー: jszip.min.js 未読込";
+            return;
+        }
+        initApp();
     });
 
-    async function processZip(file) {
-      if (!file) return;
-      els.status.className = "status"; els.status.textContent = "zip展開中...";
-      try {
-        const zip = await JSZip.loadAsync(file);
-        const xmlEntries = Object.keys(zip.files).filter(name => !zip.files[name].dir && /\.xml$/i.test(name));
-        if (xmlEntries.length === 0) throw new Error("zip内にXMLが見つかりません。");
-        els.status.textContent = "データ解析中...";
-        const parsedArticles = [];
+    function initApp() {
+        const DB_NAME = "noteuniversalarchivedb";
+        const DB_VERSION = 1;
+        const STORE_NAME = "articles";
+        let db = null, allArticles = [], currentFiltered = [], currentSortOrder = "desc", tagCounts = {}, pipelineToken = 0, pipePendingBlob = null, pipePendingFilename = "", pipeDownloadUrl = "";
 
-        for (const path of xmlEntries) {
-          const xmlText = await zip.files[path].async("string");
-          const doc = new DOMParser().parseFromString(xmlText, "application/xml");
-          const items = doc.getElementsByTagName("item");
+        const els = {
+            dropzone: document.getElementById("dropzone"), zipInput: document.getElementById("zipInput"),
+            searchQuery: document.getElementById("searchQuery"), searchTags: document.getElementById("searchTags"),
+            dateStart: document.getElementById("dateStart"), dateEnd: document.getElementById("dateEnd"),
+            startPipelineBtn: document.getElementById("startPipelineBtn"), clearDbBtn: document.getElementById("clearDbBtn"),
+            suggestList: document.getElementById("suggestList"), sortToggleBtn: document.getElementById("sortToggleBtn"),
+            articleList: document.getElementById("articleList"), matchCount: document.getElementById("matchCount"),
+            status: document.getElementById("status"), viewer: document.getElementById("viewer"),
+            viewerPlaceholder: document.getElementById("viewerPlaceholder"), viewTitle: document.getElementById("viewTitle"),
+            viewMeta: document.getElementById("viewMeta"), viewBody: document.getElementById("viewBody"),
+            viewTags: document.getElementById("viewTags"), copyBodyBtn: document.getElementById("copyBodyBtn"),
+            mobileToggleBtn: document.getElementById("mobileToggleBtn"), filterSection: document.getElementById("filterSection"),
+            mobileModal: document.getElementById("mobileModal"), modalCloseBtn: document.getElementById("modalCloseBtn"),
+            modalTitle: document.getElementById("modalTitle"), modalMeta: document.getElementById("modalMeta"),
+            modalBody: document.getElementById("modalBody"), modalTags: document.getElementById("modalTags"),
+            modalCopyBtn: document.getElementById("modalCopyBtn"), pipelineModal: document.getElementById("pipelineModal"),
+            pipelineStatus: document.getElementById("pipelineStatus"), pipelineProgress: document.getElementById("pipelineProgress"),
+            pipeDownloadBtn: document.getElementById("pipeDownloadBtn"), pipeContinueBtn: document.getElementById("pipeContinueBtn"),
+            pipeCancelBtn: document.getElementById("pipeCancelBtn")
+        };
 
-          for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            const postType = item.getElementsByTagName("wp:post_type")[0]?.textContent?.trim();
-            const status = item.getElementsByTagName("wp:status")[0]?.textContent?.trim();
-            if (postType !== "post" && postType !== "page") continue;
-            if (status && status !== "publish") continue;
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => { e.target.result.createObjectStore(STORE_NAME, { keyPath: "title" }); };
+        request.onsuccess = (e) => { db = e.target.result; els.status.textContent = "準備完了"; loadArticlesFromDB(); };
 
-            const title = item.getElementsByTagName("title")[0]?.textContent?.trim() || "untitled";
-            const date = item.getElementsByTagName("wp:post_date")[0]?.textContent?.trim() || "unknown";
-            const rawBody = item.getElementsByTagName("content:encoded")[0]?.textContent || "";
-            const body = htmlToText(rawBody);
-            if (!body) continue;
+        function loadArticlesFromDB() {
+            const transaction = db.transaction(STORE_NAME, "readonly");
+            transaction.objectStore(STORE_NAME).getAll().onsuccess = (e) => { allArticles = e.target.result || []; calculateTagCounts(); renderList(); };
+        }
 
-            // 🎨 【名前空間バグ完全修正】前回のツールから正確に要素取得ロジックを流用。
-            // getElementsByTagName("category") は名前空間の壁で0件になるため、ブラウザ標準のDOMツリーから直接判定。
-            const categories = item.getElementsByTagName("category");
-            const tags = [];
-            for (let j = 0; j < categories.length; j++) {
-              const cat = categories[j];
-              if (cat.getAttribute("domain") === "post_tag") {
-                const tagName = cat.textContent?.trim();
-                if (tagName && !tags.includes(tagName)) {
-                  tags.push(tagName);
+        function calculateTagCounts() {
+            tagCounts = {};
+            allArticles.forEach(art => { (art.tags || []).forEach(tag => { tagCounts[tag] = (tagCounts[tag] || 0) + 1; }); });
+        }
+
+        els.clearDbBtn.onclick = () => { if(confirm("クリアしますか？")) { db.close(); indexedDB.deleteDatabase(DB_NAME).onsuccess = () => location.reload(); } };
+
+        async function processZip(file) {
+            els.status.textContent = "展開中...";
+            try {
+                const zip = await JSZip.loadAsync(file);
+                const xmlEntries = Object.keys(zip.files).filter(name => !zip.files[name].dir && /\.xml$/i.test(name));
+                const transaction = db.transaction(STORE_NAME, "readwrite");
+                const store = transaction.objectStore(STORE_NAME);
+                for (const path of xmlEntries) {
+                    const doc = new DOMParser().parseFromString(await zip.files[path].async("string"), "application/xml");
+                    const items = doc.getElementsByTagName("item");
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        if (item.getElementsByTagName("wp:post_type")[0]?.textContent?.trim() !== "post") continue;
+                        const title = item.getElementsByTagName("title")[0]?.textContent?.trim() || "untitled";
+                        const date = item.getElementsByTagName("wp:post_date")[0]?.textContent?.trim() || "unknown";
+                        const body = item.getElementsByTagNameNS("http://purl.org/rss/1.0/modules/content/", "encoded")[0]?.textContent || "";
+                        const cats = item.getElementsByTagName("category");
+                        const tags = [];
+                        for (let j = 0; j < cats.length; j++) { if (cats[j].getAttribute("domain") === "post_tag") tags.push(cats[j].textContent.trim()); }
+                        store.put({ title, date, body: htmlToText(body), tags });
+                    }
                 }
-              }
-            }
-
-            parsedArticles.push({ title, date, body, tags });
-          }
+                transaction.oncomplete = () => { els.status.textContent = "同期完了"; loadArticlesFromDB(); };
+            } catch (e) { els.status.textContent = "エラー"; }
         }
 
-        els.status.textContent = "DBへ保存中...";
-        const transaction = db.transaction(STORE_NAME, "readwrite");
-        const store = transaction.objectStore(STORE_NAME);
-        let importCount = 0;
-        for (const art of parsedArticles) { store.put(art); importCount++; }
-        transaction.oncomplete = () => {
-          els.status.className = "status ok"; els.status.textContent = `${importCount}件の記事を同期しました`;
-          loadArticlesFromDB(); if(window.innerWidth <= 768) els.filterSection.classList.remove("open");
-        };
-      } catch (err) { els.status.className = "status"; els.status.textContent = "エラー: " + err.message; }
-    }
-
-    function splitKeywords(inputStr) { return inputStr.replace(/ /g, " ").toLowerCase().split(/\s+/).filter(w => w); }
-
-    function renderList() {
-      const queryWords = splitKeywords(els.searchQuery.value);
-      const tagWords = splitKeywords(els.searchTags.value);
-      const startVal = els.dateStart.value;
-      const endVal = els.dateEnd.value;
-
-      currentFiltered = allArticles.filter(art => {
-        const bodyAndTitle = (art.title + " " + art.body).toLowerCase();
-        const matchQuery = queryWords.every(word => bodyAndTitle.includes(word));
-        const artTagsLower = (art.tags || []).map(t => t.toLowerCase());
-        const matchTags = tagWords.every(word => artTagsLower.includes(word.replace("#", "").toLowerCase()));
-        
-        let matchDate = true;
-        if (art.date !== "unknown") {
-          const artDateStr = art.date.split(" ")[0];
-          if (startVal && artDateStr < startVal) matchDate = false;
-          if (endVal && artDateStr > endVal) matchDate = false;
-        } else if (startVal || endVal) { matchDate = false; }
-
-        return matchQuery && matchTags && matchDate;
-      });
-
-      currentFiltered.sort((a, b) => {
-        return currentSortOrder === "desc" ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date);
-      });
-
-      els.matchCount.textContent = `該当: ${currentFiltered.length}件`;
-      els.articleList.innerHTML = "";
-      currentFiltered.forEach(art => {
-        const item = document.createElement("div");
-        item.className = "article-item";
-        item.innerHTML = `<span class="date">${art.date}</span><strong>${art.title}</strong>`;
-        item.addEventListener("click", () => {
-          document.querySelectorAll(".article-item").forEach(el => el.classList.remove("active"));
-          item.classList.add("active"); showArticle(art);
-        });
-        els.articleList.appendChild(item);
-      });
-    }
-
-    function sanitizeFilename(name) { return name.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, " ").trim(); }
-
-    function formatArticle(item) {
-      return `${item.title}\ndate: ${item.date || "unknown"}\n\n${item.body}\n`;
-    }
-
-    function revokePipeUrl() { if (pipeDownloadUrl) { URL.revokeObjectURL(pipeDownloadUrl); pipeDownloadUrl = ""; } }
-
-    function triggerPipeDownload(blob, filename) {
-      revokePipeUrl();
-      pipeDownloadUrl = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = pipeDownloadUrl; a.download = filename;
-      document.body.appendChild(a); a.click(); a.remove();
-    }
-
-    async function waitForPipeDownloadOrContinue(activeToken) {
-      return new Promise((resolve, reject) => {
-        const cleanup = () => {
-          els.pipeDownloadBtn.removeEventListener("click", onDownloadOnce);
-          els.pipeContinueBtn.removeEventListener("click", onContinueOnce);
-          els.pipeContinueBtn.disabled = true;
-        };
-        const onDownloadOnce = () => {
-          if (activeToken !== pipelineToken) { cleanup(); reject(new Error("中止")); return; }
-          if (!pipePendingBlob) return;
-          triggerPipeDownload(pipePendingBlob, pipePendingFilename);
-          pipePendingBlob = null; pipePendingFilename = "";
-          els.pipeDownloadBtn.disabled = true;
-          els.pipeContinueBtn.disabled = false;
-          els.pipelineStatus.textContent = "ダウンロード完了。下のボタンで次へ進んでください。";
-        };
-        const onContinueOnce = () => {
-          if (activeToken !== pipelineToken) { cleanup(); reject(new Error("中止")); return; }
-          if (pipePendingBlob) return;
-          cleanup(); resolve();
-        };
-        els.pipeContinueBtn.disabled = true;
-        els.pipeDownloadBtn.disabled = false;
-        els.pipeDownloadBtn.addEventListener("click", onDownloadOnce);
-        els.pipeContinueBtn.addEventListener("click", onContinueOnce);
-      });
-    }
-
-    els.startPipelineBtn.addEventListener("click", async () => {
-      if (currentFiltered.length === 0) { alert("出力対象の記事がありません。"); return; }
-      
-      const fmt = "txt";
-      const batchSize = 200;
-      const token = ++pipelineToken;
-
-      revokePipeUrl();
-      pipePendingBlob = null; pipePendingFilename = "";
-      els.pipelineProgress.value = 0;
-      els.pipelineStatus.textContent = "ZIPバッチ初期化中...";
-      els.pipelineModal.classList.add("open");
-
-      try {
-        let articleIndex = 1;
-        let batchIndex = 1;
-        let batchArticles = [];
-
-        for (let i = 0; i < currentFiltered.length; i++) {
-          if (token !== pipelineToken) throw new Error("中止");
-          
-          const art = currentFiltered[i];
-          const ext = ".txt";
-          const safeTitle = sanitizeFilename(art.title);
-          const filename = `${String(articleIndex).padStart(3, "0")}_${safeTitle}${ext}`;
-
-          batchArticles.push({ name: filename, content: formatArticle(art) });
-          articleIndex++;
-
-          if (batchArticles.length >= batchSize || i === currentFiltered.length - 1) {
-            const startNo = articleIndex - batchArticles.length;
-            const endNo = articleIndex - 1;
-            const zipName = `note_articles_${fmt}_${String(startNo).padStart(3, "0")}-${String(endNo).padStart(3, "0")}.zip`;
-
-            els.pipelineStatus.textContent = `バッチ ${batchIndex} 生成中... (${batchArticles.length}件)`;
-            
-            const zip = new JSZip();
-            batchArticles.forEach(b => zip.file(b.name, b.content));
-            const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 5 } });
-            
-            if (token !== pipelineToken) throw new Error("中止");
-
-            pipePendingBlob = blob;
-            pipePendingFilename = zipName;
-            
-            els.pipelineProgress.value = Math.round(((i + 1) / currentFiltered.length) * 100);
-            els.pipelineStatus.textContent = `バッチ ${batchIndex} (${startNo}〜${endNo}) の準備完了。`;
-
-            await waitForPipeDownloadOrContinue(token);
-
-            batchArticles = [];
-            batchIndex++;
-          }
-        }
-
-        els.pipelineStatus.textContent = `🎉 全てのエクスポートが完了しました！計 ${articleIndex - 1} 記事`;
-        els.pipeDownloadBtn.disabled = true;
-        els.pipeContinueBtn.textContent = "閉じる";
-        els.pipeContinueBtn.disabled = false;
-        
-        const closeOnce = () => {
-          els.pipelineModal.classList.remove("open");
-          els.pipeContinueBtn.textContent = "次のバッチへ";
-          els.pipeContinueBtn.removeEventListener("click", closeOnce);
-        };
-        els.pipeContinueBtn.addEventListener("click", closeOnce);
-
-      } catch (err) {
-        els.pipelineModal.classList.remove("open");
-        if (err.message !== "中止") alert("エラーが発生しました: " + err.message);
-      }
-    });
-
-    els.pipeCancelBtn.addEventListener("click", () => { pipelineToken++; revokePipeUrl(); els.pipelineModal.classList.remove("open"); });
-
-    function showTagSuggestions() {
-      const inputWord = els.searchTags.value.replace("#", "").toLowerCase().trim();
-      let sortedTags = Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]);
-      if (inputWord) sortedTags = sortedTags.filter(tag => tag.toLowerCase().includes(inputWord));
-      if (sortedTags.length === 0) { els.suggestList.style.display = "none"; return; }
-
-      els.suggestList.innerHTML = "";
-      sortedTags.slice(0, 10).forEach(tag => {
-        const div = document.createElement("div"); div.className = "suggest-item";
-        div.innerHTML = `<span>#${tag}</span><span class="suggest-count">${tagCounts[tag]}件</span>`;
-        div.addEventListener("mousedown", (e) => { e.preventDefault(); executeTagSearch(tag); });
-        els.suggestList.appendChild(div);
-      });
-      els.suggestList.style.display = "block";
-    }
-
-    function executeTagSearch(tag) {
-      els.searchTags.value = tag; els.suggestList.style.display = "none"; renderList();
-      if (window.innerWidth <= 768) {
-        els.filterSection.classList.remove("open");
-        els.mobileToggleBtn.textContent = "🔍 検索・インポート条件を開く";
-        els.mobileModal.classList.remove("open");
-      }
-    }
-
-    els.searchTags.addEventListener("focus", showTagSuggestions);
-    els.searchTags.addEventListener("input", showTagSuggestions);
-    els.searchTags.addEventListener("blur", () => { els.suggestList.style.display = "none"; });
-    els.dateStart.addEventListener("change", renderList);
-    els.dateEnd.addEventListener("change", renderList);
-
-    let activeArticle = null;
-    function showArticle(art) {
-      activeArticle = art;
-      const isMobile = window.innerWidth <= 768;
-      const targetTitle = isMobile ? els.modalTitle : els.viewTitle;
-      const targetMeta = isMobile ? els.modalMeta : els.viewMeta;
-      const targetBody = isMobile ? els.modalBody : els.viewBody;
-      const targetTags = isMobile ? els.modalTags : els.viewTags;
-
-      targetTitle.textContent = art.title;
-      targetMeta.textContent = `投稿日: ${art.date}`;
-      targetBody.textContent = art.body;
-
-      targetTags.innerHTML = "";
-      if (art.tags && art.tags.length > 0) {
-        art.tags.forEach(tag => {
-          const a = document.createElement("a"); a.className = "tag-link"; a.textContent = `#${tag}`;
-          a.addEventListener("click", (e) => { e.preventDefault(); executeTagSearch(tag); });
-          targetTags.appendChild(a);
-        });
-        targetTags.style.display = "flex";
-      } else { targetTags.style.display = "none"; }
-
-      if (isMobile) { els.mobileModal.classList.add("open"); } 
-      else { els.viewerPlaceholder.style.display = "none"; els.viewer.style.display = "block"; }
-    }
-
-    function handleCopy() {
-      if (!activeArticle) return;
-      navigator.clipboard.writeText(activeArticle.body).then(() => {
-        const targetBtn = window.innerWidth <= 768 ? els.modalCopyBtn : els.copyBodyBtn;
-        const originalText = targetBtn.textContent; targetBtn.textContent = "📋 コピー完了！";
-        setTimeout(() => targetBtn.textContent = originalText, 1500);
-      });
-    }
-    els.copyBodyBtn.addEventListener("click", handleCopy);
-    els.modalCopyBtn.addEventListener("click", handleCopy);
-
-    els.modalCloseBtn.addEventListener("click", () => els.mobileModal.classList.remove("open"));
-    els.mobileModal.addEventListener("click", (e) => { if (e.target === els.mobileModal) els.mobileModal.classList.remove("open"); });
-
-    els.mobileToggleBtn.addEventListener("click", () => {
-      els.filterSection.classList.toggle("open");
-      els.mobileToggleBtn.textContent = els.filterSection.classList.contains("open") ? "▲ 検索・インポート条件を閉じる" : "🔍 検索・インポート条件を開く";
-    });
-
-    els.sortToggleBtn.addEventListener("click", () => {
-      currentSortOrder = (currentSortOrder === "desc") ? "asc" : "desc";
-      els.sortToggleBtn.textContent = (currentSortOrder === "desc") ? "▼ 新しい順" : "▲ 古い順";
-      renderList();
-    });
-
-    window.addEventListener("resize", () => {
-      if (window.innerWidth > 768) {
-        if (els.mobileModal.classList.contains("open")) els.mobileModal.classList.remove("open");
-        if (activeArticle) {
-          els.viewerPlaceholder.style.display = "none"; els.viewer.style.display = "block";
-          els.viewTitle.textContent = activeArticle.title; els.viewMeta.textContent = `投稿日: ${activeArticle.date}`; els.viewBody.textContent = activeArticle.body;
-          els.viewTags.innerHTML = "";
-          if (activeArticle.tags && activeArticle.tags.length > 0) {
-            activeArticle.tags.forEach(tag => {
-              const a = document.createElement("a"); a.className = "tag-link"; a.textContent = `#${tag}`;
-              a.addEventListener("click", (e) => { e.preventDefault(); executeTagSearch(tag); });
-              els.viewTags.appendChild(a);
+        function renderList() {
+            const queryWords = els.searchQuery.value.toLowerCase().split(/\s+/).filter(w=>w);
+            const tagWords = els.searchTags.value.toLowerCase().split(/\s+/).filter(w=>w);
+            const startVal = els.dateStart.value, endVal = els.dateEnd.value;
+            currentFiltered = allArticles.filter(art => {
+                const bT = (art.title + " " + art.body).toLowerCase();
+                const mQ = queryWords.every(w => bT.includes(w));
+                const aT = (art.tags || []).map(t => t.toLowerCase());
+                const mT = tagWords.every(w => aT.includes(w.replace("#", "")));
+                const mD = (!startVal || art.date >= startVal) && (!endVal || art.date <= endVal);
+                return mQ && mT && mD;
             });
-            els.viewTags.style.display = "flex";
-          } else { els.viewTags.style.display = "none"; }
+            els.matchCount.textContent = `該当: ${currentFiltered.length}件`;
+            els.articleList.innerHTML = "";
+            currentFiltered.forEach(art => {
+                const item = document.createElement("div");
+                item.className = "article-item";
+                item.innerHTML = `<span class="date">${art.date}</span><strong>${art.title}</strong>`;
+                item.onclick = () => showArticle(art);
+                els.articleList.appendChild(item);
+            });
         }
-      }
-    });
+        
+        function showArticle(art) {
+            const isM = window.innerWidth <= 768;
+            (isM ? els.modalTitle : els.viewTitle).textContent = art.title;
+            (isM ? els.modalBody : els.viewBody).textContent = art.body;
+            (isM ? els.modalTags : els.viewTags).innerHTML = (art.tags || []).map(t => `<a class="tag-link">#${t}</a>`).join("");
+            (isM ? els.modalTags : els.viewTags).querySelectorAll('.tag-link').forEach((el, i) => {
+                el.onclick = () => executeTagSearch(art.tags[i]);
+            });
+            (isM ? els.mobileModal : els.viewer).style.display = isM ? "flex" : "block";
+            if(isM) els.mobileModal.classList.add("open");
+        }
 
-    els.dropzone.addEventListener("click", () => els.zipInput.click());
-    els.zipInput.addEventListener("change", (e) => processZip(e.target.files[0]));
-    els.dropzone.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; els.dropzone.classList.add("dragover"); });
-    els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); });
-    els.dropzone.addEventListener("dragleave", (e) => { e.preventDefault(); dragDepth--; if (dragDepth <= 0) els.dropzone.classList.remove("dragover"); });
-    els.dropzone.addEventListener("drop", (e) => {
-      e.preventDefault(); dragDepth = 0; els.dropzone.classList.remove("dragover");
-      if (e.dataTransfer.files?.[0]) processZip(e.dataTransfer.files[0]);
-    });
+        function executeTagSearch(tag) {
+            els.searchTags.value = tag; renderList();
+            if(window.innerWidth <= 768) { els.mobileModal.classList.remove("open"); els.filterSection.classList.remove("open"); }
+        }
 
-    els.searchQuery.addEventListener("input", renderList);
+        els.zipInput.onchange = (e) => processZip(e.target.files[0]);
+        els.searchQuery.oninput = renderList;
+        els.searchTags.oninput = renderList;
+        els.dateStart.onchange = renderList;
+        els.dateEnd.onchange = renderList;
 
-    function htmlToText(value) {
-      let text = value;
-      text = text.replace(/<br\s*\/?>/gi, "\n");
-      text = text.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li|ul|ol|blockquote|pre|tr)>/gi, "\n");
-      text = text.replace(/<hr\s*\/?>/gi, "\n---\n");
-      text = text.replace(/<script[\s\S]*?<\/script>/gi, "");
-      text = text.replace(/<style[\s\S]*?<\/style>/gi, "");
-      text = text.replace(/<[^>]+>/g, "");
-      const ta = document.createElement("textarea"); ta.innerHTML = text; text = ta.value;
-      text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n{3,}/g, "\n\n");
-      return text.trim();
+        function htmlToText(v) { return v.replace(/<[^>]+>/g, "").trim(); }
     }
   </script>
 </body>
