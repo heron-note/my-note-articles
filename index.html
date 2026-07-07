@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>note エクスポート記事 検索・管理スタジオ</title>
   <style>
     :root {
@@ -14,6 +14,8 @@
       --accent: #0071e3;
       --border: #d2d2d7;
       --ok: #248a3d;
+      --modal-bg: rgba(0, 0, 0, 0.4);
+      --tag-bg: #e8e8ed;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -24,6 +26,8 @@
         --accent: #409cff;
         --border: #48484a;
         --ok: #30d158;
+        --modal-bg: rgba(0, 0, 0, 0.6);
+        --tag-bg: #3a3a3c;
       }
     }
     * { box-sizing: border-box; }
@@ -39,9 +43,6 @@
       grid-template-columns: 360px 1fr;
       height: 100vh;
     }
-    @media (max-width: 768px) {
-      .wrapper { grid-template-columns: 1fr; height: auto; }
-    }
     
     /* サイドバー */
     sidebar {
@@ -53,11 +54,8 @@
       gap: 12px;
       overflow-y: auto;
     }
-    @media (max-width: 768px) {
-      sidebar { border-right: none; border-bottom: 1px solid var(--border); max-height: 600px; }
-    }
     
-    /* メインコンテンツ */
+    /* メインコンテンツ（PC用） */
     main {
       padding: 24px;
       overflow-y: auto;
@@ -73,72 +71,57 @@
     }
     h1 { font-size: 1.1rem; margin: 0; }
     label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem; color: var(--muted); }
+    
+    .input-container { position: relative; }
     input[type="text"] {
-      width: 100%; font: inherit; padding: 8px;
+      width: 100%; font: inherit; padding: 10px;
       border: 1px solid var(--border); border-radius: 8px;
       background: var(--bg); color: var(--text);
     }
     
+    /* タグサジェストリスト */
+    .suggest-list {
+      position: absolute; top: 100%; left: 0; right: 0;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; max-height: 200px; overflow-y: auto;
+      z-index: 100; display: none; margin-top: 4px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .suggest-item {
+      padding: 10px; cursor: pointer; font-size: 0.85rem;
+      display: flex; justify-content: space-between;
+    }
+    .suggest-item:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+    .suggest-count { color: var(--muted); font-size: 0.75rem; }
+
     /* ドロップゾーン */
     .dropzone {
-      border: 2px dashed var(--border);
-      border-radius: 10px;
-      padding: 12px;
-      text-align: center;
-      background: var(--bg);
-      cursor: pointer;
+      border: 2px dashed var(--border); border-radius: 10px;
+      padding: 16px; text-align: center; background: var(--bg); cursor: pointer;
     }
-    .dropzone.dragover {
-      border-color: var(--accent);
-      background: color-mix(in srgb, var(--accent) 8%, var(--bg));
-    }
+    .dropzone.dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
     .dropzone input[type="file"] { display: none; }
-
     .status { font-size: 0.8rem; color: var(--accent); min-height: 1.2em; margin-top: 2px; }
     .status.ok { color: var(--ok); }
     
-    /* リストヘッダー（件数＆ソートトグル） */
-    .list-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 4px;
-      margin-top: 4px;
-    }
-    .match-count {
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
+    /* リストヘッダー */
+    .list-header { display: flex; justify-content: space-between; align-items: center; padding: 4px; }
+    .match-count { font-size: 0.85rem; font-weight: 600; }
     .sort-toggle {
-      background: none;
-      border: none;
-      color: var(--accent);
-      font-size: 0.8rem;
-      font-weight: 600;
-      cursor: pointer;
-      padding: 2px 6px;
-      border-radius: 4px;
+      background: none; border: none; color: var(--accent);
+      font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 4px;
     }
-    .sort-toggle:hover {
-      background: color-mix(in srgb, var(--accent) 10%, transparent);
-    }
+    .sort-toggle:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
     /* 記事リスト */
     .article-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      flex-grow: 1;
-      overflow-y: auto;
-      min-height: 200px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 4px;
-      background: var(--bg);
+      display: flex; flex-direction: column; gap: 6px; flex-grow: 1;
+      overflow-y: auto; min-height: 200px; border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px; background: var(--bg);
     }
     .article-item {
-      padding: 8px 12px; background: var(--card); border-radius: 6px;
-      cursor: pointer; border: 1px solid transparent; font-size: 0.85rem;
+      padding: 10px 12px; background: var(--card); border-radius: 6px;
+      cursor: pointer; border: 1px solid transparent; font-size: 0.9rem;
     }
     .article-item:hover { border-color: var(--accent); }
     .article-item.active { background: var(--accent); color: white; }
@@ -152,12 +135,54 @@
       border: 1px solid var(--border); white-space: pre-wrap;
       word-break: break-word; font-size: 0.95rem;
     }
-    .copy-btn { width: auto; padding: 6px 12px; font-size: 0.8rem; margin-bottom: 12px; border: none; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; font-weight: 600; }
     
+    /* 🎨 タグリンクエリアの新しいスタイル */
+    .viewer .tag-container {
+      margin-top: 16px; padding-top: 16px;
+      border-top: 1px dashed var(--border);
+      display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .tag-link {
+      background: var(--tag-bg); color: var(--accent);
+      padding: 6px 12px; border-radius: 16px; font-size: 0.85rem;
+      font-weight: 600; text-decoration: none; cursor: pointer;
+      display: inline-block; transition: background 0.2s;
+    }
+    .tag-link:hover {
+      background: color-mix(in srgb, var(--accent) 15%, var(--tag-bg));
+    }
+
+    .copy-btn { width: auto; padding: 8px 16px; font-size: 0.85rem; margin-bottom: 12px; border: none; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; font-weight: 600; }
     .placeholder-text { color: var(--muted); margin: auto; text-align: center; font-size: 0.9rem; }
     .placeholder-text::before { content: "← リストから記事を選択するか、zipファイルをインポートしてください。"; }
+
+    /* スマホ用トグルボタン */
+    .mobile-filter-toggle { display: none; width: 100%; padding: 10px; font-weight: 600; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; }
+
+    /* スマホ用レイアウト */
     @media (max-width: 768px) {
-      .placeholder-text::before { content: "↑ リストから記事を選択するか、zipファイルをインポートしてください。"; }
+      .wrapper { grid-template-columns: 1fr; height: 100vh; display: flex; flex-direction: column; }
+      sidebar { border-right: none; height: 100vh; flex-grow: 1; padding: 12px; gap: 8px; }
+      .mobile-filter-toggle { display: block; }
+      .filter-section { display: none; flex-direction: column; gap: 8px; }
+      .filter-section.open { display: flex; }
+      main { display: none; }
+      .placeholder-text { display: none; }
+      .modal-viewer {
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+        background: var(--modal-bg); z-index: 1000;
+        display: none; justify-content: center; align-items: flex-end;
+      }
+      .modal-viewer.open { display: flex; }
+      .modal-content {
+        background: var(--card); width: 100%; max-height: 85vh;
+        border-top-left-radius: 20px; border-top-right-radius: 20px;
+        padding: 20px; overflow-y: auto; display: flex; flex-direction: column;
+        box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+        animation: slideUp 0.25s ease-out;
+      }
+      @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+      .modal-close-btn { align-self: flex-end; background: var(--bg); border: none; padding: 6px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -166,26 +191,31 @@
 
   <div class="wrapper">
     <sidebar>
-      <div>
-        <h1>記事検索・管理スタジオ</h1>
+      <div style="display:flex; justify-content:between; align-items:center;">
+        <h1 style="flex-grow:1;">記事管理スタジオ</h1>
         <div id="status" class="status">DB接続中...</div>
       </div>
 
-      <div class="card">
-        <div id="dropzone" class="dropzone">
-          <div style="font-weight:600; font-size:0.85rem;">zip をドロップ または クリック</div>
-          <input id="zipInput" type="file" accept=".zip">
-        </div>
-      </div>
+      <button id="mobileToggleBtn" class="mobile-filter-toggle">🔍 検索・インポート条件を開く</button>
 
-      <div class="card" style="display:flex; flex-direction:column; gap:8px;">
-        <div>
-          <label for="searchQuery">フリーワード検索</label>
-          <input id="searchQuery" type="text" placeholder="スペース区切りでAND検索">
+      <div id="filterSection" class="filter-section">
+        <div class="card">
+          <div id="dropzone" class="dropzone">
+            <div style="font-weight:600; font-size:0.85rem;">zipをドロップ または クリック</div>
+            <input id="zipInput" type="file" accept=".zip">
+          </div>
         </div>
-        <div>
-          <label for="searchTags">タグ検索</label>
-          <input id="searchTags" type="text" placeholder="例: AI小説 スタンプ">
+
+        <div class="card" style="display:flex; flex-direction:column; gap:8px;">
+          <div>
+            <label for="searchQuery">フリーワード検索</label>
+            <input id="searchQuery" type="text" placeholder="スペース区切りでAND検索" autocomplete="off">
+          </div>
+          <div class="input-container">
+            <label for="searchTags">タグ検索</label>
+            <input id="searchTags" type="text" placeholder="タップで登録タグ一覧を表示" autocomplete="off">
+            <div id="suggestList" class="suggest-list"></div>
+          </div>
         </div>
       </div>
 
@@ -197,15 +227,29 @@
       <div id="articleList" class="article-list"></div>
     </sidebar>
 
-    <main>
+    <main id="pcMain">
       <div id="viewer" class="viewer" style="display: none;">
         <h2 id="viewTitle">記事タイトル</h2>
-        <div id="viewMeta" class="meta">日付: -- | タグ: --</div>
+        <div id="viewMeta" class="meta">日付: --</div>
         <button id="copyBodyBtn" class="copy-btn">📋 本文を一撃コピー</button>
         <div id="viewBody" class="body"></div>
+        <div id="viewTags" class="tag-container"></div>
       </div>
       <div id="viewerPlaceholder" class="placeholder-text"></div>
     </main>
+  </div>
+
+  <div id="mobileModal" class="modal-viewer">
+    <div class="modal-content">
+      <button id="modalCloseBtn" class="modal-close-btn">閉じる</button>
+      <div class="viewer">
+        <h2 id="modalTitle">記事タイトル</h2>
+        <div id="modalMeta" class="meta">日付: --</div>
+        <button id="modalCopyBtn" class="copy-btn">📋 本文を一撃コピー</button>
+        <div id="modalBody" class="body"></div>
+        <div id="modalTags" class="tag-container"></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -218,12 +262,14 @@
     let allArticles = [];
     let dragDepth = 0;
     let currentSortOrder = "desc";
+    let tagCounts = {};
 
     const els = {
       dropzone: document.getElementById("dropzone"),
       zipInput: document.getElementById("zipInput"),
       searchQuery: document.getElementById("searchQuery"),
       searchTags: document.getElementById("searchTags"),
+      suggestList: document.getElementById("suggestList"),
       sortToggleBtn: document.getElementById("sortToggleBtn"),
       articleList: document.getElementById("articleList"),
       matchCount: document.getElementById("matchCount"),
@@ -233,7 +279,17 @@
       viewTitle: document.getElementById("viewTitle"),
       viewMeta: document.getElementById("viewMeta"),
       viewBody: document.getElementById("viewBody"),
-      copyBodyBtn: document.getElementById("copyBodyBtn")
+      viewTags: document.getElementById("viewTags"), // PC用タグ
+      copyBodyBtn: document.getElementById("copyBodyBtn"),
+      mobileToggleBtn: document.getElementById("mobileToggleBtn"),
+      filterSection: document.getElementById("filterSection"),
+      mobileModal: document.getElementById("mobileModal"),
+      modalCloseBtn: document.getElementById("modalCloseBtn"),
+      modalTitle: document.getElementById("modalTitle"),
+      modalMeta: document.getElementById("modalMeta"),
+      modalBody: document.getElementById("modalBody"),
+      modalTags: document.getElementById("modalTags"), // スマホ用タグ
+      modalCopyBtn: document.getElementById("modalCopyBtn")
     };
 
     // 1. IndexedDB初期化
@@ -252,11 +308,21 @@
       const getAllRequest = transaction.objectStore(STORE_NAME).getAll();
       getAllRequest.onsuccess = () => {
         allArticles = getAllRequest.result;
+        calculateTagCounts();
         renderList();
       };
     }
 
-    // 2. ZIPファイルを非同期で「全件パース」してから一気にDBへ保存（トランザクション切れを完全に防止）
+    function calculateTagCounts() {
+      tagCounts = {};
+      allArticles.forEach(art => {
+        art.tags.forEach(tag => {
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        });
+      });
+    }
+
+    // 2. ZIPファイルのインポート処理
     async function processZip(file) {
       if (!file) return;
       els.status.className = "status";
@@ -271,7 +337,6 @@
         els.status.textContent = "データ解析中...";
         const parsedArticles = [];
 
-        // 1. まず非同期処理（zip展開＆XMLパース）をすべて完全に終わらせて配列に溜める
         for (const path of xmlEntries) {
           const xmlText = await zip.files[path].async("string");
           const doc = new DOMParser().parseFromString(xmlText, "application/xml");
@@ -302,7 +367,6 @@
           }
         }
 
-        // 2. 完全に溜まった状態から、一撃で同期的にIndexedDBへ高速コミットする（絶対に途中でトランザクションが切れない）
         els.status.textContent = "DBへ保存中...";
         const transaction = db.transaction(STORE_NAME, "readwrite");
         const store = transaction.objectStore(STORE_NAME);
@@ -317,6 +381,7 @@
           els.status.className = "status ok";
           els.status.textContent = `${importCount}件の記事を同期しました`;
           loadArticlesFromDB();
+          if(window.innerWidth <= 768) els.filterSection.classList.remove("open");
         };
 
       } catch (err) {
@@ -329,7 +394,7 @@
       return inputStr.replace(/ /g, " ").toLowerCase().split(/\s+/).filter(w => w);
     }
 
-    // 3. リスト描画とソート
+    // 3. リスト描画
     function renderList() {
       const queryWords = splitKeywords(els.searchQuery.value);
       const tagWords = splitKeywords(els.searchTags.value);
@@ -339,7 +404,7 @@
         const matchQuery = queryWords.every(word => bodyAndTitle.includes(word));
 
         const artTagsLower = art.tags.map(t => t.toLowerCase());
-        const matchTags = tagWords.every(word => artTagsLower.includes(word.replace("#", "")));
+        const matchTags = tagWords.every(word => artTagsLower.includes(word.replace("#", "").toLowerCase()));
 
         return matchQuery && matchTags;
       });
@@ -367,6 +432,121 @@
       });
     }
 
+    // 4. タグサジェスト
+    function showTagSuggestions() {
+      const inputWord = els.searchTags.value.replace("#", "").toLowerCase().trim();
+      let sortedTags = Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]);
+
+      if (inputWord) {
+        sortedTags = sortedTags.filter(tag => tag.toLowerCase().includes(inputWord));
+      }
+
+      if (sortedTags.length === 0) {
+        els.suggestList.style.display = "none";
+        return;
+      }
+
+      els.suggestList.innerHTML = "";
+      sortedTags.slice(0, 10).forEach(tag => {
+        const div = document.createElement("div");
+        div.className = "suggest-item";
+        div.innerHTML = `<span>#${tag}</span><span class="suggest-count">${tagCounts[tag]}件</span>`;
+        
+        div.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          executeTagSearch(tag);
+        });
+        els.suggestList.appendChild(div);
+      });
+
+      els.suggestList.style.display = "block";
+    }
+
+    // 🎨 タグ一発検索ロジックの共通化
+    function executeTagSearch(tag) {
+      els.searchTags.value = tag;
+      els.suggestList.style.display = "none";
+      renderList();
+      
+      // スマホの場合は、検索窓アコーディオンを自動で閉じてリストを見やすくする
+      if (window.innerWidth <= 768) {
+        els.filterSection.classList.remove("open");
+        els.mobileToggleBtn.textContent = "🔍 検索・インポート条件を開く";
+        els.mobileModal.classList.remove("open"); // スマホのポップアップも閉じる
+      }
+    }
+
+    els.searchTags.addEventListener("focus", showTagSuggestions);
+    els.searchTags.addEventListener("input", showTagSuggestions);
+    els.searchTags.addEventListener("blur", () => { els.suggestList.style.display = "none"; });
+
+    // 5. 記事の表示制御（タグ生成ロジック追加）
+    let activeArticle = null;
+    function showArticle(art) {
+      activeArticle = art;
+      
+      const targetTitle = window.innerWidth <= 768 ? els.modalTitle : els.viewTitle;
+      const targetMeta = window.innerWidth <= 768 ? els.modalMeta : els.viewMeta;
+      const targetBody = window.innerWidth <= 768 ? els.modalBody : els.viewBody;
+      const targetTags = window.innerWidth <= 768 ? els.modalTags : els.viewTags;
+
+      // 基礎テキスト流し込み
+      targetTitle.textContent = art.title;
+      targetMeta.textContent = `投稿日: ${art.date}`;
+      targetBody.textContent = art.body;
+
+      // 🎨 記事の下にタグリンクを動的生成
+      targetTags.innerHTML = "";
+      if (art.tags.length > 0) {
+        art.tags.forEach(tag => {
+          const a = document.createElement("a");
+          a.className = "tag-link";
+          a.textContent = `#${tag}`;
+          a.addEventListener("click", (e) => {
+            e.preventDefault();
+            executeTagSearch(tag);
+          });
+          targetTags.appendChild(a);
+        });
+        targetTags.style.display = "flex";
+      } else {
+        targetTags.style.display = "none";
+      }
+
+      if (window.innerWidth <= 768) {
+        els.mobileModal.classList.add("open");
+      } else {
+        els.viewerPlaceholder.style.display = "none";
+        els.viewer.style.display = "block";
+      }
+    }
+
+    function handleCopy() {
+      if (!activeArticle) return;
+      navigator.clipboard.writeText(activeArticle.body).then(() => {
+        const targetBtn = window.innerWidth <= 768 ? els.modalCopyBtn : els.copyBodyBtn;
+        const originalText = targetBtn.textContent;
+        targetBtn.textContent = "📋 コピー完了！";
+        setTimeout(() => targetBtn.textContent = originalText, 1500);
+      });
+    }
+    els.copyBodyBtn.addEventListener("click", handleCopy);
+    els.modalCopyBtn.addEventListener("click", handleCopy);
+
+    els.modalCloseBtn.addEventListener("click", () => els.mobileModal.classList.remove("open"));
+    els.mobileModal.addEventListener("click", (e) => {
+      if (e.target === els.mobileModal) els.mobileModal.classList.remove("open");
+    });
+
+    els.mobileToggleBtn.addEventListener("click", () => {
+      els.filterSection.classList.toggle("open");
+      if(els.filterSection.classList.contains("open")) {
+        els.mobileToggleBtn.textContent = "▲ 検索・インポート条件を閉じる";
+      } else {
+        els.mobileToggleBtn.textContent = "🔍 検索・インポート条件を開く";
+      }
+    });
+
     els.sortToggleBtn.addEventListener("click", () => {
       if (currentSortOrder === "desc") {
         currentSortOrder = "asc";
@@ -378,29 +558,8 @@
       renderList();
     });
 
-    let activeArticle = null;
-    function showArticle(art) {
-      activeArticle = art;
-      els.viewerPlaceholder.style.display = "none";
-      els.viewer.style.display = "block";
-      els.viewTitle.textContent = art.title;
-      els.viewMeta.textContent = `投稿日: ${art.date} | タグ: ${art.tags.length ? art.tags.map(t => "#" + t).join(" ") : "なし"}`;
-      els.viewBody.textContent = art.body;
-    }
-
-    els.copyBodyBtn.addEventListener("click", () => {
-      if (!activeArticle) return;
-      navigator.clipboard.writeText(activeArticle.body).then(() => {
-        const originalText = els.copyBodyBtn.textContent;
-        els.copyBodyBtn.textContent = "📋 コピー完了！";
-        setTimeout(() => els.copyBodyBtn.textContent = originalText, 1500);
-      });
-    });
-
-    // イベント制御
     els.dropzone.addEventListener("click", () => els.zipInput.click());
     els.zipInput.addEventListener("change", (e) => processZip(e.target.files[0]));
-
     els.dropzone.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; els.dropzone.classList.add("dragover"); });
     els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); });
     els.dropzone.addEventListener("dragleave", (e) => { e.preventDefault(); dragDepth--; if (dragDepth <= 0) els.dropzone.classList.remove("dragover"); });
@@ -410,7 +569,6 @@
     });
 
     els.searchQuery.addEventListener("input", renderList);
-    els.searchTags.addEventListener("input", renderList);
 
     function htmlToText(value) {
       let text = value;
