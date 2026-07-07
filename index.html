@@ -41,7 +41,7 @@
     }
     .wrapper { display: grid; grid-template-columns: 360px 1fr; height: 100vh; }
     
-    sidebar { background: var(--card); border-right: 1px solid var(--border); padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+    sidebar { background: var(--card); border-right: 1px solid var(--border); padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow: hidden; height: 100vh; }
     main { padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; width: 100%; }
     h1 { font-size: 1.1rem; margin: 0; }
@@ -62,9 +62,10 @@
 
     .suggest-list {
       position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--border);
-      border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; display: none; margin-top: 4px;
+      border-radius: 8px; max-height: min(50vh, 360px); overflow-y: auto; z-index: 100; display: none; margin-top: 4px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
+    .suggest-header { padding: 8px 10px; font-size: 0.75rem; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--card); z-index: 1; }
     .suggest-item { padding: 10px; cursor: pointer; font-size: 0.85rem; display: flex; justify-content: space-between; }
     .suggest-item:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
@@ -85,12 +86,49 @@
 
     progress { width: 100%; height: 8px; margin-top: 6px; }
     
-    .list-header { display: flex; justify-content: space-between; align-items: center; padding: 4px; }
-    .match-count { font-size: 0.85rem; font-weight: 600; }
+    .list-header { display: flex; justify-content: space-between; align-items: center; padding: 4px; gap: 8px; flex-wrap: wrap; }
+    .list-tabs { display: flex; gap: 4px; }
+    .list-tab {
+      padding: 4px 10px; border: 1px solid var(--border); border-radius: 6px;
+      background: var(--bg); color: var(--text); cursor: pointer; font-size: 0.8rem; font-weight: 600;
+    }
+    .list-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .match-count { font-size: 0.85rem; font-weight: 600; flex: 1; text-align: right; }
+    .noun-filter-bar {
+      display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      padding: 6px 10px; margin-bottom: 6px; background: var(--noun-bg); border-radius: 8px;
+      font-size: 0.8rem; flex-shrink: 0;
+    }
+    .noun-filter-bar[hidden] { display: none !important; }
+    .noun-filter-clear {
+      background: transparent; border: 1px solid var(--border); border-radius: 6px;
+      padding: 2px 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; color: var(--text);
+    }
+    .noun-browse-list {
+      display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;
+      border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
+    }
+    .noun-browse-list.active { display: flex; }
+    .noun-browse-toolbar {
+      padding: 8px; border-bottom: 1px solid var(--border); background: var(--card); flex-shrink: 0;
+    }
+    .noun-browse-toolbar input {
+      width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--border);
+      border-radius: 8px; background: var(--bg); color: var(--text);
+    }
+    .noun-browse-summary { padding: 6px 10px; font-size: 0.75rem; color: var(--muted); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .noun-browse-scroll { flex: 1; overflow-y: auto; min-height: 0; }
+    .noun-browse-item {
+      padding: 10px 12px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px;
+      background: var(--card); border-bottom: 1px solid var(--border); font-size: 0.9rem;
+    }
+    .noun-browse-item:hover { background: color-mix(in srgb, var(--accent) 8%, var(--card)); }
+    .noun-browse-item .count { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+    .article-list.hidden { display: none; }
     .sort-toggle { background: none; border: none; color: var(--accent); font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
     .sort-toggle:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
-    .article-list { display: flex; flex-direction: column; gap: 6px; flex-grow: 1; overflow-y: auto; min-height: 200px; border: 1px solid var(--border); border-radius: 8px; padding: 6px; background: var(--bg); width: 100%; }
+    .article-list { display: flex; flex-direction: column; gap: 6px; flex: 1; overflow-y: auto; min-height: 0; border: 1px solid var(--border); border-radius: 8px; padding: 6px; background: var(--bg); width: 100%; }
     .article-item { padding: 10px 12px; background: var(--card); border-radius: 6px; cursor: pointer; border: 1px solid transparent; font-size: 0.9rem; }
     .article-item:hover { border-color: var(--accent); }
     .article-item.active { background: var(--accent); color: white; }
@@ -117,7 +155,18 @@
     .placeholder-text { color: var(--muted); margin: auto; text-align: center; font-size: 0.9rem; }
     .placeholder-text::before { content: "← リストから記事を選択するか、zipファイルをインポートしてください。"; }
 
-    .mobile-filter-toggle { display: none; width: 100%; padding: 10px; font-weight: 600; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; }
+    .mobile-filter-toggle { display: none; width: 100%; padding: 10px; font-weight: 600; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; flex-shrink: 0; }
+
+    .filter-section { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+    .search-toggle {
+      width: 100%; padding: 8px 10px; font-size: 0.85rem; font-weight: 600;
+      background: var(--bg); color: var(--text); border: 1px solid var(--border);
+      border-radius: 8px; cursor: pointer; text-align: left; flex-shrink: 0;
+    }
+    .search-toggle:hover { border-color: var(--accent); color: var(--accent); }
+    .search-section { display: none; flex-direction: column; gap: 8px; flex-shrink: 0; }
+    .search-section.open { display: flex; }
+    .import-card .dropzone { padding: 10px; }
 
     .modal-viewer, .pipeline-modal {
       position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--modal-bg); z-index: 1000;
@@ -173,21 +222,44 @@
       </div>
       <button id="mobileToggleBtn" class="mobile-filter-toggle">検索・インポート条件を開く</button>
       <div id="filterSection" class="filter-section">
-        <div class="card">
+        <div class="card import-card">
           <div id="dropzone" class="dropzone">
             <div style="font-weight:600; font-size:0.85rem;">zipをドロップ または クリック</div>
             <input id="zipInput" type="file" accept=".zip">
           </div>
         </div>
-        <div class="card" style="display:flex; flex-direction:column; gap:6px;">
-          <div><label for="searchQuery">フリーワード検索</label><input id="searchQuery" type="text" placeholder="スペース区切りでAND検索" autocomplete="off"></div>
-          <div class="input-container"><label for="searchNoun">名詞で絞り込み</label><input id="searchNoun" type="text" placeholder="タップで頻出名詞一覧を表示" autocomplete="off"><div id="nounSuggestList" class="suggest-list"></div></div>
-          <div><label>日付期間検索</label><div class="date-range"><input id="dateStart" class="date-input" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" autocomplete="off"><div class="date-separator">-</div><input id="dateEnd" class="date-input" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" autocomplete="off"></div></div>
-          <button id="startPipelineBtn" class="action-btn btn-ok">マッチ記事を順次ZIP保存</button>
+        <button id="searchToggleBtn" type="button" class="search-toggle">検索条件を開く</button>
+        <div id="searchSection" class="search-section">
+          <div class="card" style="display:flex; flex-direction:column; gap:6px;">
+            <div><label for="searchQuery">フリーワード検索</label><input id="searchQuery" type="text" placeholder="スペース区切りでAND検索" autocomplete="off"></div>
+            <div class="input-container"><label for="searchNoun">名詞で絞り込み</label><input id="searchNoun" type="text" placeholder="タップで頻出名詞一覧を表示" autocomplete="off"><div id="nounSuggestList" class="suggest-list"></div></div>
+            <div><label>日付期間検索</label><div class="date-range"><input id="dateStart" class="date-input" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" autocomplete="off"><div class="date-separator">-</div><input id="dateEnd" class="date-input" type="text" inputmode="numeric" placeholder="YYYY-MM-DD" autocomplete="off"></div></div>
+            <button id="startPipelineBtn" class="action-btn btn-ok">マッチ記事を順次ZIP保存</button>
+          </div>
         </div>
       </div>
-      <div class="list-header"><span id="matchCount" class="match-count">該当: 0件</span><button id="sortToggleBtn" class="sort-toggle">新しい順</button></div>
+      <div style="flex-shrink:0; display:flex; flex-direction:column; gap:0;">
+        <div class="list-header">
+          <div class="list-tabs">
+            <button id="articleTabBtn" type="button" class="list-tab active">記事一覧</button>
+            <button id="nounTabBtn" type="button" class="list-tab">名詞一覧</button>
+          </div>
+          <span id="matchCount" class="match-count">該当: 0件</span>
+          <button id="sortToggleBtn" class="sort-toggle">新しい順</button>
+        </div>
+        <div id="nounFilterBar" class="noun-filter-bar" hidden>
+          <span id="nounFilterLabel">名詞: ---</span>
+          <button id="clearNounFilterBtn" type="button" class="noun-filter-clear">解除</button>
+        </div>
+      </div>
       <div id="articleList" class="article-list"></div>
+      <div id="nounBrowseList" class="noun-browse-list">
+        <div class="noun-browse-toolbar">
+          <input id="nounBrowseQuery" type="text" placeholder="名詞を検索（部分一致）" autocomplete="off">
+        </div>
+        <div id="nounBrowseSummary" class="noun-browse-summary">名詞 0件</div>
+        <div id="nounBrowseScroll" class="noun-browse-scroll"></div>
+      </div>
     </sidebar>
     <main id="pcMain">
       <div id="viewer" class="viewer" style="display: none;">
@@ -273,6 +345,13 @@
       const nounQueueSet = new Set();
       let queueProcessing = false;
       let queueRetryTimer = null;
+      const SUGGEST_PAGE_SIZE = 50;
+      const NOUN_BROWSE_PAGE_SIZE = 60;
+      let nounSuggestFiltered = [];
+      let nounSuggestRendered = 0;
+      let nounBrowseFiltered = [];
+      let nounBrowseRendered = 0;
+      let activeListTab = "article";
       const morphState = {
         visible: false,
         phase: "idle",
@@ -295,6 +374,15 @@
         reindexNounsBtn: document.getElementById("reindexNounsBtn"),
         sortToggleBtn: document.getElementById("sortToggleBtn"),
         articleList: document.getElementById("articleList"),
+        articleTabBtn: document.getElementById("articleTabBtn"),
+        nounTabBtn: document.getElementById("nounTabBtn"),
+        nounFilterBar: document.getElementById("nounFilterBar"),
+        nounFilterLabel: document.getElementById("nounFilterLabel"),
+        clearNounFilterBtn: document.getElementById("clearNounFilterBtn"),
+        nounBrowseList: document.getElementById("nounBrowseList"),
+        nounBrowseQuery: document.getElementById("nounBrowseQuery"),
+        nounBrowseSummary: document.getElementById("nounBrowseSummary"),
+        nounBrowseScroll: document.getElementById("nounBrowseScroll"),
         matchCount: document.getElementById("matchCount"),
         status: document.getElementById("status"),
         viewer: document.getElementById("viewer"),
@@ -306,6 +394,8 @@
         copyBodyBtn: document.getElementById("copyBodyBtn"),
         mobileToggleBtn: document.getElementById("mobileToggleBtn"),
         filterSection: document.getElementById("filterSection"),
+        searchToggleBtn: document.getElementById("searchToggleBtn"),
+        searchSection: document.getElementById("searchSection"),
         mobileModal: document.getElementById("mobileModal"),
         modalCloseBtn: document.getElementById("modalCloseBtn"),
         modalTitle: document.getElementById("modalTitle"),
@@ -381,9 +471,33 @@
         allNouns.sort((a, b) => (b.articleCount || 0) - (a.articleCount || 0));
         rebuildNounMaps();
         renderList();
+        renderNounBrowseList(true);
       }
 
       function needsNounIndexing(art) {
+        if (art.nounsIndexed === true) return false;
+        if (Array.isArray(art.nounIds) && art.nounIds.length > 0) return false;
+        return true;
+      }
+
+      function getSearchFilterHint() {
+        const parts = [];
+        if (els.searchQuery.value.trim()) parts.push("ワード");
+        if (els.searchNoun.value.trim()) parts.push("名詞");
+        if (els.dateStart.value.trim() || els.dateEnd.value.trim()) parts.push("日付");
+        return parts.length ? ` (${parts.join("・")}指定中)` : "";
+      }
+
+      function updateSearchToggleLabel() {
+        const open = els.searchSection.classList.contains("open");
+        const hint = getSearchFilterHint();
+        els.searchToggleBtn.textContent = open ? `検索条件を閉じる${hint}` : `検索条件を開く${hint}`;
+      }
+
+      function setSearchSectionOpen(open) {
+        els.searchSection.classList.toggle("open", open);
+        updateSearchToggleLabel();
+      }
         if (art.nounsIndexed === true) return false;
         if (Array.isArray(art.nounIds) && art.nounIds.length > 0) return false;
         return true;
@@ -480,6 +594,7 @@
               await updateLocalArticle(title);
               morphState.completed++;
               renderList();
+              renderNounBrowseList(true);
             } catch (err) {
               console.warn("名詞抽出失敗:", title, err);
               nounQueue.push(title);
@@ -776,6 +891,34 @@
         return /^\d{4}-\d{2}-\d{2}$/.test(t) ? t : "";
       }
 
+      function formatDateInputLive(value, cursorPos) {
+        const left = value.slice(0, cursorPos).replace(/\D/g, "");
+        const right = value.slice(cursorPos).replace(/\D/g, "");
+        const digits = (left + right).slice(0, 8);
+        let formatted = digits;
+        if (digits.length > 4) {
+          formatted = digits.slice(0, 4) + "-" + digits.slice(4);
+        }
+        if (digits.length > 6) {
+          formatted = digits.slice(0, 4) + "-" + digits.slice(4, 6) + "-" + digits.slice(6);
+        }
+        let newPos = left.length;
+        if (left.length > 4) newPos++;
+        if (left.length > 6) newPos++;
+        newPos = Math.min(newPos, formatted.length);
+        return { formatted, newPos };
+      }
+
+      function handleDateInput(e) {
+        const el = e.target;
+        const { formatted, newPos } = formatDateInputLive(el.value, el.selectionStart ?? el.value.length);
+        if (el.value !== formatted) {
+          el.value = formatted;
+          el.setSelectionRange(newPos, newPos);
+        }
+        renderList();
+      }
+
       function renderList() {
         const queryWords = splitKeywords(els.searchQuery.value);
         const nounInput = els.searchNoun.value.trim();
@@ -808,7 +951,11 @@
           return currentSortOrder === "desc" ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date);
         });
 
-        els.matchCount.textContent = `該当: ${currentFiltered.length}件`;
+        els.matchCount.textContent = nounInput
+          ? `該当: ${currentFiltered.length}件 (名詞: ${nounInput})`
+          : `該当: ${currentFiltered.length}件`;
+        updateSearchToggleLabel();
+        updateNounFilterBar();
         els.articleList.innerHTML = "";
         currentFiltered.forEach(art => {
           const item = document.createElement("div");
@@ -930,31 +1077,135 @@
 
       els.pipeCancelBtn.addEventListener("click", () => { pipelineToken++; revokePipeUrl(); els.pipelineModal.classList.remove("open"); });
 
-      function showNounSuggestions() {
-        const inputWord = els.searchNoun.value.toLowerCase().trim();
-        let sorted = allNouns.filter(n => (n.articleCount || 0) > 0);
-        if (inputWord) sorted = sorted.filter(n => n.word.toLowerCase().includes(inputWord));
-        if (sorted.length === 0) { els.nounSuggestList.style.display = "none"; return; }
-        els.nounSuggestList.innerHTML = "";
-        sorted.slice(0, 15).forEach(noun => {
-          const div = document.createElement("div");
-          div.className = "suggest-item";
-          div.innerHTML = `<span>${noun.word}</span><span>${noun.articleCount}件</span>`;
-          div.addEventListener("mousedown", (e) => { e.preventDefault(); executeNounSearch(noun.word); });
-          els.nounSuggestList.appendChild(div);
-        });
-        els.nounSuggestList.style.display = "block";
+      function updateNounFilterBar() {
+        const word = els.searchNoun.value.trim();
+        if (!word) {
+          els.nounFilterBar.hidden = true;
+          return;
+        }
+        els.nounFilterBar.hidden = false;
+        els.nounFilterLabel.textContent = `名詞: ${word}`;
       }
 
-      function executeNounSearch(word) {
+      function setListTab(tab) {
+        activeListTab = tab;
+        const isArticle = tab === "article";
+        els.articleTabBtn.classList.toggle("active", isArticle);
+        els.nounTabBtn.classList.toggle("active", !isArticle);
+        els.articleList.classList.toggle("hidden", !isArticle);
+        els.nounBrowseList.classList.toggle("active", !isArticle);
+        els.sortToggleBtn.style.display = isArticle ? "" : "none";
+        els.matchCount.style.display = isArticle ? "" : "none";
+        if (!isArticle) renderNounBrowseList(true);
+      }
+
+      function getBrowseFilteredNouns() {
+        const q = els.nounBrowseQuery.value.toLowerCase().trim();
+        let sorted = allNouns.filter(n => (n.articleCount || 0) > 0);
+        if (q) sorted = sorted.filter(n => n.word.toLowerCase().includes(q));
+        return sorted;
+      }
+
+      function appendNounBrowseItems() {
+        const end = Math.min(nounBrowseRendered + NOUN_BROWSE_PAGE_SIZE, nounBrowseFiltered.length);
+        for (let i = nounBrowseRendered; i < end; i++) {
+          const noun = nounBrowseFiltered[i];
+          const div = document.createElement("div");
+          div.className = "noun-browse-item";
+          div.innerHTML = `<span>${noun.word}</span><span class="count">${noun.articleCount}件</span>`;
+          div.addEventListener("click", () => applyNounFilter(noun.word));
+          els.nounBrowseScroll.appendChild(div);
+        }
+        nounBrowseRendered = end;
+      }
+
+      function renderNounBrowseList(reset) {
+        if (reset !== false) {
+          nounBrowseFiltered = getBrowseFilteredNouns();
+          nounBrowseRendered = 0;
+          els.nounBrowseScroll.innerHTML = "";
+        }
+        els.nounBrowseSummary.textContent = nounBrowseFiltered.length > 0
+          ? `名詞 ${nounBrowseFiltered.length}件（タップで記事を絞り込み）`
+          : "名詞がありません。形態素解析完了後に表示されます。";
+        if (nounBrowseRendered === 0 && nounBrowseFiltered.length > 0) {
+          appendNounBrowseItems();
+        }
+      }
+
+      function onNounBrowseScroll() {
+        const el = els.nounBrowseScroll;
+        if (el.scrollTop + el.clientHeight < el.scrollHeight - 24) return;
+        if (nounBrowseRendered >= nounBrowseFiltered.length) return;
+        appendNounBrowseItems();
+      }
+
+      function applyNounFilter(word) {
         els.searchNoun.value = word;
         els.nounSuggestList.style.display = "none";
+        setListTab("article");
         renderList();
         if (window.innerWidth <= 768) {
           els.filterSection.classList.remove("open");
           els.mobileToggleBtn.textContent = "検索・インポート条件を開く";
           els.mobileModal.classList.remove("open");
         }
+      }
+
+      function clearNounFilter() {
+        els.searchNoun.value = "";
+        renderList();
+      }
+
+      function getFilteredNouns() {
+        const inputWord = els.searchNoun.value.toLowerCase().trim();
+        let sorted = allNouns.filter(n => (n.articleCount || 0) > 0);
+        if (inputWord) sorted = sorted.filter(n => n.word.toLowerCase().includes(inputWord));
+        return sorted;
+      }
+
+      function appendNounSuggestItems() {
+        const end = Math.min(nounSuggestRendered + SUGGEST_PAGE_SIZE, nounSuggestFiltered.length);
+        for (let i = nounSuggestRendered; i < end; i++) {
+          const noun = nounSuggestFiltered[i];
+          const div = document.createElement("div");
+          div.className = "suggest-item";
+          div.innerHTML = `<span>${noun.word}</span><span>${noun.articleCount}件</span>`;
+          div.addEventListener("mousedown", (e) => { e.preventDefault(); executeNounSearch(noun.word); });
+          els.nounSuggestList.appendChild(div);
+        }
+        nounSuggestRendered = end;
+      }
+
+      function showNounSuggestions(reset) {
+        if (reset !== false) {
+          nounSuggestFiltered = getFilteredNouns();
+          nounSuggestRendered = 0;
+          els.nounSuggestList.innerHTML = "";
+        }
+        if (nounSuggestFiltered.length === 0) {
+          els.nounSuggestList.style.display = "none";
+          return;
+        }
+        if (nounSuggestRendered === 0) {
+          const header = document.createElement("div");
+          header.className = "suggest-header";
+          header.textContent = `名詞 ${nounSuggestFiltered.length}件（スクロールで追加表示）`;
+          els.nounSuggestList.appendChild(header);
+          appendNounSuggestItems();
+        }
+        els.nounSuggestList.style.display = "block";
+      }
+
+      function onNounSuggestScroll() {
+        const el = els.nounSuggestList;
+        if (el.scrollTop + el.clientHeight < el.scrollHeight - 24) return;
+        if (nounSuggestRendered >= nounSuggestFiltered.length) return;
+        appendNounSuggestItems();
+      }
+
+      function executeNounSearch(word) {
+        applyNounFilter(word);
       }
 
       function renderNounChips(container, art) {
@@ -1025,6 +1276,19 @@
           : "検索・インポート条件を開く";
       });
 
+      els.searchToggleBtn.addEventListener("click", () => {
+        setSearchSectionOpen(!els.searchSection.classList.contains("open"));
+      });
+
+      els.articleTabBtn.addEventListener("click", () => setListTab("article"));
+      els.nounTabBtn.addEventListener("click", () => setListTab("noun"));
+      els.clearNounFilterBtn.addEventListener("click", clearNounFilter);
+      els.nounBrowseQuery.addEventListener("input", () => renderNounBrowseList(true));
+      els.nounBrowseScroll.addEventListener("scroll", onNounBrowseScroll);
+
+      setSearchSectionOpen(false);
+      setListTab("article");
+
       els.sortToggleBtn.addEventListener("click", () => {
         currentSortOrder = (currentSortOrder === "desc") ? "asc" : "desc";
         els.sortToggleBtn.textContent = (currentSortOrder === "desc") ? "新しい順" : "古い順";
@@ -1061,11 +1325,16 @@
       });
 
       els.searchQuery.addEventListener("input", renderList);
-      els.searchNoun.addEventListener("focus", showNounSuggestions);
-      els.searchNoun.addEventListener("input", () => { showNounSuggestions(); renderList(); });
+      els.searchNoun.addEventListener("focus", () => showNounSuggestions(true));
+      els.searchNoun.addEventListener("input", () => {
+        showNounSuggestions(true);
+        renderList();
+        if (!els.searchNoun.value.trim()) updateNounFilterBar();
+      });
       els.searchNoun.addEventListener("blur", () => { els.nounSuggestList.style.display = "none"; });
-      els.dateStart.addEventListener("input", renderList);
-      els.dateEnd.addEventListener("input", renderList);
+      els.nounSuggestList.addEventListener("scroll", onNounSuggestScroll);
+      els.dateStart.addEventListener("input", handleDateInput);
+      els.dateEnd.addEventListener("input", handleDateInput);
 
       function htmlToText(value) {
         let text = value;

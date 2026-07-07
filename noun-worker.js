@@ -1,7 +1,7 @@
 "use strict";
 
 const KUROMOJI_DIC_BASE = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/";
-const BODY_TOP_N = 15;
+const BODY_TOP_N = 40;
 
 const STOP_NOUNS = new Set([
   "こと", "もの", "ため", "よう", "ところ", "わけ", "はず", "つもり", "まま",
@@ -13,6 +13,24 @@ const STOP_NOUNS = new Set([
 ]);
 
 let tokenizer = null;
+
+const URL_IN_TEXT = /https?:\/\/[^\s\u3000<>"]+|www\.[^\s\u3000<>"]+|\b[a-z0-9][-a-z0-9]*\.(?:com|net|org|jp|io|co\.jp|note\.com)(?:\/[^\s\u3000<>"]*)?/gi;
+
+function stripUrls(text) {
+  if (!text) return "";
+  return text.replace(URL_IN_TEXT, " ");
+}
+
+function isUrlLikeToken(w) {
+  if (!w) return true;
+  if (/^https?$/i.test(w)) return true;
+  if (/^www\.?$/i.test(w)) return true;
+  if (/^[a-z0-9][-a-z0-9]*\.(com|net|org|jp|io|co\.jp)$/i.test(w)) return true;
+  if (w.includes("://")) return true;
+  if (w.includes("/") && /[a-z]/i.test(w)) return true;
+  if ((w.match(/\./g) || []).length >= 2 && /^[a-z0-9._/-]+$/i.test(w)) return true;
+  return false;
+}
 
 function patchDictionaryXhr() {
   if (XMLHttpRequest.prototype.__kuromojiDicPatched) return;
@@ -41,13 +59,14 @@ function isValidNoun(token) {
   if (token.pos_detail_1 === "数") return false;
   const w = token.surface_form;
   if (!w || STOP_NOUNS.has(w)) return false;
+  if (isUrlLikeToken(w)) return false;
   if (/^[a-zA-Z0-9][a-zA-Z0-9+.#-]*$/.test(w)) return w.length >= 1;
   return w.length >= 2;
 }
 
 function collectNouns(text) {
   const nouns = [];
-  for (const token of tokenizer.tokenize(text)) {
+  for (const token of tokenizer.tokenize(stripUrls(text))) {
     if (isValidNoun(token)) nouns.push(token.surface_form);
   }
   return nouns;
@@ -56,7 +75,7 @@ function collectNouns(text) {
 function extractRepresentativeNouns(title, body) {
   const titleNouns = collectNouns(title || "");
   const freq = new Map();
-  for (const token of tokenizer.tokenize(body || "")) {
+  for (const token of tokenizer.tokenize(stripUrls(body || ""))) {
     if (!isValidNoun(token)) continue;
     const w = token.surface_form;
     freq.set(w, (freq.get(w) || 0) + 1);
