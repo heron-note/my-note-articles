@@ -128,7 +128,25 @@
     .pipeline-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; width: 100%; max-width: 480px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 14px; }
     .pipeline-actions { display: flex; gap: 8px; margin-top: 8px; }
 
+    .morph-overlay {
+      position: fixed; bottom: 16px; right: 16px; z-index: 1500;
+      visibility: hidden; opacity: 0; transition: opacity 0.2s, visibility 0.2s;
+      pointer-events: none;
+    }
+    .morph-overlay.visible { visibility: visible; opacity: 1; }
+    .morph-overlay-panel {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+      min-width: 260px; max-width: 340px; pointer-events: none;
+    }
+    .morph-overlay-title { font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; }
+    .morph-overlay-status { font-size: 0.8rem; color: var(--accent); margin-bottom: 6px; word-break: break-all; }
+    .morph-overlay-detail { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+    .morph-overlay progress { margin-top: 4px; }
+
     @media (max-width: 768px) {
+      .morph-overlay { left: 12px; right: 12px; bottom: 12px; }
+      .morph-overlay-panel { max-width: none; width: 100%; }
       .wrapper { grid-template-columns: 1fr; height: 100vh; display: flex; flex-direction: column; }
       sidebar { border-right: none; height: 100vh; flex-grow: 1; padding: 12px; gap: 8px; }
       .mobile-filter-toggle { display: block; }
@@ -149,6 +167,7 @@
         <h1 style="display:inline-block; font-size:1.1rem; margin:0;">記事管理スタジオ</h1>
         <div class="status-area">
           <div id="status" class="status">DB接続中...</div>
+          <button id="reindexNounsBtn" class="clear-db-btn" style="background:var(--accent);">名詞再解析</button>
           <button id="clearDbBtn" class="clear-db-btn">DBクリア</button>
         </div>
       </div>
@@ -207,6 +226,14 @@
       </div>
     </div>
   </div>
+  <div id="morphOverlay" class="morph-overlay">
+    <div class="morph-overlay-panel">
+      <div class="morph-overlay-title">形態素解析</div>
+      <div id="morphOverlayStatus" class="morph-overlay-status">準備中...</div>
+      <progress id="morphOverlayProgress" max="100" value="0"></progress>
+      <div id="morphOverlayDetail" class="morph-overlay-detail"></div>
+    </div>
+  </div>
   <script>
     "use strict";
 
@@ -242,6 +269,18 @@
       let nounWorkerInitPromise = null;
       let workerReqSeq = 0;
       const workerWaiters = new Map();
+      const nounQueue = [];
+      const nounQueueSet = new Set();
+      let queueProcessing = false;
+      let queueRetryTimer = null;
+      const morphState = {
+        visible: false,
+        phase: "idle",
+        initMessage: "",
+        currentTitle: "",
+        sessionTotal: 0,
+        completed: 0
+      };
 
       const els = {
         dropzone: document.getElementById("dropzone"),
@@ -253,6 +292,7 @@
         dateEnd: document.getElementById("dateEnd"),
         startPipelineBtn: document.getElementById("startPipelineBtn"),
         clearDbBtn: document.getElementById("clearDbBtn"),
+        reindexNounsBtn: document.getElementById("reindexNounsBtn"),
         sortToggleBtn: document.getElementById("sortToggleBtn"),
         articleList: document.getElementById("articleList"),
         matchCount: document.getElementById("matchCount"),
@@ -278,7 +318,11 @@
         pipelineProgress: document.getElementById("pipelineProgress"),
         pipeDownloadBtn: document.getElementById("pipeDownloadBtn"),
         pipeContinueBtn: document.getElementById("pipeContinueBtn"),
-        pipeCancelBtn: document.getElementById("pipeCancelBtn")
+        pipeCancelBtn: document.getElementById("pipeCancelBtn"),
+        morphOverlay: document.getElementById("morphOverlay"),
+        morphOverlayStatus: document.getElementById("morphOverlayStatus"),
+        morphOverlayProgress: document.getElementById("morphOverlayProgress"),
+        morphOverlayDetail: document.getElementById("morphOverlayDetail")
       };
 
       function idbRequest(req) {
@@ -314,9 +358,9 @@
       request.onsuccess = (e) => {
         db = e.target.result;
         els.status.textContent = "データベース準備完了";
-        loadAllFromDB();
-        ensureNounWorker().catch(() => {
-          els.status.textContent = "警告: 名詞解析エンジンの読込に失敗";
+        loadAllFromDB().then(() => {
+          const pending = allArticles.filter(needsNounIndexing);
+          if (pending.length > 0) enqueueArticleTitles(pending.map(a => a.title));
         });
       };
       request.onerror = () => { els.status.textContent = "エラー: DB接続失敗"; };
@@ -339,25 +383,202 @@
         renderList();
       }
 
-      const WORKER_INIT_TIMEOUT_MS = 120000;
-      const EXTRACT_TIMEOUT_MS = 30000;
+      function needsNounIndexing(art) {
+        if (art.nounsIndexed === true) return false;
+        if (Array.isArray(art.nounIds) && art.nounIds.length > 0) return false;
+        return true;
+      }
 
-      function ensureNounWorker() {
+      function updateMorphOverlay() {
+        const pending = nounQueue.length + (queueProcessing && morphState.currentTitle ? 1 : 0);
+        const show = queueProcessing || nounQueue.length > 0;
+        morphState.visible = show;
+        els.morphOverlay.classList.toggle("visible", show);
+
+        if (!show) return;
+
+        if (morphState.phase === "init") {
+          els.morphOverlayStatus.textContent = morphState.initMessage || "エンジン準備中...";
+          els.morphOverlayDetail.textContent = morphState.sessionTotal > 0
+            ? `待機中: ${morphState.sessionTotal - morphState.completed}件`
+            : "";
+          els.morphOverlayProgress.value = 0;
+          return;
+        }
+
+        if (morphState.phase === "extracting") {
+          els.morphOverlayStatus.textContent = morphState.currentTitle
+            ? `解析中: ${morphState.currentTitle}`
+            : "名詞抽出中...";
+          const total = Math.max(morphState.sessionTotal, 1);
+          els.morphOverlayProgress.value = Math.round((morphState.completed / total) * 100);
+          els.morphOverlayDetail.textContent = `完了 ${morphState.completed} / ${morphState.sessionTotal}件（残り ${pending}件）`;
+          return;
+        }
+
+        if (nounQueue.length > 0) {
+          els.morphOverlayStatus.textContent = "解析待機中...";
+          els.morphOverlayDetail.textContent = `残り ${nounQueue.length}件`;
+          els.morphOverlayProgress.value = morphState.sessionTotal > 0
+            ? Math.round((morphState.completed / morphState.sessionTotal) * 100)
+            : 0;
+        }
+      }
+
+      function enqueueArticleTitles(titles) {
+        let added = 0;
+        for (const title of titles) {
+          if (!title || nounQueueSet.has(title)) continue;
+          const art = allArticles.find(a => a.title === title);
+          if (art && !needsNounIndexing(art)) continue;
+          nounQueue.push(title);
+          nounQueueSet.add(title);
+          added++;
+        }
+        if (added > 0) {
+          morphState.sessionTotal += added;
+          updateMorphOverlay();
+          scheduleQueueProcessor();
+        }
+      }
+
+      function scheduleQueueProcessor(delayMs) {
+        if (queueRetryTimer) clearTimeout(queueRetryTimer);
+        queueRetryTimer = setTimeout(() => {
+          queueRetryTimer = null;
+          startQueueProcessor();
+        }, delayMs || 0);
+      }
+
+      async function startQueueProcessor() {
+        if (queueProcessing || nounQueue.length === 0) return;
+        queueProcessing = true;
+        morphState.phase = "init";
+        updateMorphOverlay();
+
+        try {
+          await ensureNounWorker(false);
+          morphState.phase = "extracting";
+
+          while (nounQueue.length > 0) {
+            const title = nounQueue.shift();
+            nounQueueSet.delete(title);
+            const art = await loadArticleByTitle(title);
+            if (!art || !needsNounIndexing(art)) {
+              morphState.completed++;
+              updateMorphOverlay();
+              continue;
+            }
+
+            morphState.currentTitle = title;
+            updateMorphOverlay();
+
+            try {
+              const nouns = await extractNounsFromText(art.title, art.body);
+              await saveArticleWithNouns(art, nouns);
+              await refreshNouns();
+              await updateLocalArticle(title);
+              morphState.completed++;
+              renderList();
+            } catch (err) {
+              console.warn("名詞抽出失敗:", title, err);
+              nounQueue.push(title);
+              nounQueueSet.add(title);
+              if (String(err.message || err).includes("形態素解析エンジン")) {
+                resetNounWorker();
+                throw err;
+              }
+            }
+
+            updateMorphOverlay();
+            await new Promise(r => setTimeout(r, 0));
+          }
+
+          morphState.phase = "idle";
+          morphState.currentTitle = "";
+          if (morphState.completed >= morphState.sessionTotal) {
+            morphState.sessionTotal = 0;
+            morphState.completed = 0;
+          }
+          els.status.className = "status ok";
+          els.status.textContent = "形態素解析が完了しました";
+        } catch (err) {
+          console.error("形態素解析キューエラー:", err);
+          morphState.phase = "idle";
+          morphState.initMessage = err.message || String(err);
+          els.status.className = "status warn";
+          els.status.textContent = "形態素解析エンジン待機中（自動リトライ）";
+          scheduleQueueProcessor(5000);
+        } finally {
+          queueProcessing = false;
+          morphState.currentTitle = "";
+          updateMorphOverlay();
+          if (!queueProcessing && nounQueue.length > 0) scheduleQueueProcessor(100);
+        }
+      }
+
+      async function loadArticleByTitle(title) {
+        const local = allArticles.find(a => a.title === title);
+        if (local) return local;
+        const tx = db.transaction(STORE_ARTICLES, "readonly");
+        return idbRequest(tx.objectStore(STORE_ARTICLES).get(title));
+      }
+
+      async function updateLocalArticle(title) {
+        const tx = db.transaction(STORE_ARTICLES, "readonly");
+        const art = await idbRequest(tx.objectStore(STORE_ARTICLES).get(title));
+        if (!art) return;
+        const idx = allArticles.findIndex(a => a.title === title);
+        if (idx >= 0) allArticles[idx] = art;
+        else allArticles.push(art);
+        if (activeArticle && activeArticle.title === title) {
+          activeArticle = art;
+          const isMobile = window.innerWidth <= 768;
+          renderNounChips(isMobile ? els.modalNouns : els.viewNouns, art);
+        }
+      }
+
+      async function refreshNouns() {
+        const tx = db.transaction(STORE_NOUNS, "readonly");
+        allNouns = await idbRequest(tx.objectStore(STORE_NOUNS).getAll());
+        allNouns.sort((a, b) => (b.articleCount || 0) - (a.articleCount || 0));
+        rebuildNounMaps();
+      }
+
+      function resetNounWorker() {
+        try { nounWorker?.terminate(); } catch (_) {}
+        nounWorker = null;
+        nounWorkerReady = false;
+        nounWorkerInitPromise = null;
+        workerWaiters.clear();
+      }
+
+      function ensureNounWorker(forceReset) {
+        if (forceReset) resetNounWorker();
         if (nounWorkerReady) return Promise.resolve();
         if (nounWorkerInitPromise) return nounWorkerInitPromise;
+        morphState.phase = "init";
+        morphState.initMessage = "エンジン起動中...";
+        updateMorphOverlay();
         nounWorkerInitPromise = new Promise((resolve, reject) => {
           let settled = false;
           const finish = (fn, val) => {
             if (settled) return;
             settled = true;
-            clearTimeout(timeoutId);
             fn(val);
+          };
+          const failInit = (err) => {
+            workerWaiters.delete("init");
+            resetNounWorker();
+            finish(reject, err);
           };
           nounWorker = new Worker("noun-worker.js");
           nounWorker.onmessage = (e) => {
             const { type, id, nouns, message } = e.data;
             if (type === "status" && id === "init") {
-              els.status.textContent = message;
+              morphState.phase = "init";
+              morphState.initMessage = message;
+              updateMorphOverlay();
               return;
             }
             if (type === "ready" && id === "init") {
@@ -366,26 +587,19 @@
               finish(resolve);
               return;
             }
+            if (type === "error" && id === "init") {
+              failInit(new Error(message || "形態素解析エンジン初期化失敗"));
+              return;
+            }
             const waiter = workerWaiters.get(id);
             if (!waiter) return;
             workerWaiters.delete(id);
             if (type === "extracted") waiter.resolve(nouns);
             else if (type === "error") waiter.reject(new Error(message));
           };
-          nounWorker.onerror = (err) => {
-            workerWaiters.delete("init");
-            nounWorkerInitPromise = null;
-            finish(reject, err);
-          };
-          workerWaiters.set("init", { resolve: () => finish(resolve), reject: (e) => finish(reject, e) });
+          nounWorker.onerror = (err) => failInit(err);
+          workerWaiters.set("init", { resolve: () => finish(resolve), reject: failInit });
           nounWorker.postMessage({ type: "init", id: "init" });
-          const timeoutId = setTimeout(() => {
-            workerWaiters.delete("init");
-            try { nounWorker.terminate(); } catch (_) {}
-            nounWorker = null;
-            nounWorkerInitPromise = null;
-            finish(reject, new Error("形態素解析エンジンの初期化がタイムアウトしました"));
-          }, WORKER_INIT_TIMEOUT_MS);
         });
         return nounWorkerInitPromise;
       }
@@ -397,14 +611,7 @@
             return;
           }
           const id = "req_" + (++workerReqSeq);
-          const timeoutId = setTimeout(() => {
-            workerWaiters.delete(id);
-            reject(new Error("名詞抽出タイムアウト"));
-          }, EXTRACT_TIMEOUT_MS);
-          workerWaiters.set(id, {
-            resolve: (nouns) => { clearTimeout(timeoutId); resolve(nouns); },
-            reject: (err) => { clearTimeout(timeoutId); reject(err); }
-          });
+          workerWaiters.set(id, { resolve, reject });
           nounWorker.postMessage({ type: "extract", id, title, body });
         });
       }
@@ -445,21 +652,55 @@
         return nounIds;
       }
 
+      async function saveArticleBasic(article) {
+        await clearArticleNounLinks(article.title);
+        const tx = db.transaction(STORE_ARTICLES, "readwrite");
+        tx.objectStore(STORE_ARTICLES).put({
+          title: article.title,
+          date: article.date,
+          body: article.body,
+          nounsIndexed: false,
+          nounIds: []
+        });
+        await waitTx(tx);
+      }
+
       async function saveArticleWithNouns(article, nounWords) {
         await clearArticleNounLinks(article.title);
         const nounIds = await linkArticleToNouns(article.title, nounWords);
         const tx = db.transaction(STORE_ARTICLES, "readwrite");
-        tx.objectStore(STORE_ARTICLES).put({ ...article, nounIds });
+        tx.objectStore(STORE_ARTICLES).put({ ...article, nounIds, nounsIndexed: true });
         await waitTx(tx);
       }
 
       els.clearDbBtn.addEventListener("click", () => {
         if (!confirm("データベース内のすべての記事・名詞データを完全に消去します。よろしいですか？")) return;
         if (db) db.close();
+        nounQueue.length = 0;
+        nounQueueSet.clear();
+        if (queueRetryTimer) clearTimeout(queueRetryTimer);
+        resetNounWorker();
         indexedDB.deleteDatabase(DB_NAME).onsuccess = () => {
           alert("データベースを完全に初期化しました。最新のパーステストを行うために再読み込みします。");
           location.reload();
         };
+      });
+
+      els.reindexNounsBtn.addEventListener("click", async () => {
+        if (!db || allArticles.length === 0) {
+          alert("再解析する記事がありません。先にZIPをインポートしてください。");
+          return;
+        }
+        if (!confirm(`DB内の ${allArticles.length} 件すべての名詞解析をやり直します。よろしいですか？`)) return;
+        els.status.textContent = "名詞データをリセット中...";
+        for (const art of allArticles) {
+          await saveArticleBasic(art);
+        }
+        await loadAllFromDB();
+        morphState.sessionTotal = 0;
+        morphState.completed = 0;
+        enqueueArticleTitles(allArticles.map(a => a.title));
+        els.status.textContent = `${allArticles.length}件を形態素解析キューに追加しました`;
       });
 
       async function processZip(file) {
@@ -496,40 +737,19 @@
 
           if (parsedArticles.length === 0) throw new Error("取り込める記事がありません。");
 
-          els.status.textContent = "形態素解析エンジン準備中...";
-          let useNouns = true;
-          try {
-            await ensureNounWorker();
-          } catch (_) {
-            useNouns = false;
-            els.status.textContent = "警告: 名詞解析をスキップしてインポート続行...";
-          }
-
+          els.status.textContent = "記事を保存中...";
           for (let i = 0; i < parsedArticles.length; i++) {
-            const art = parsedArticles[i];
-            els.status.textContent = useNouns
-              ? `名詞抽出中... ${i + 1}/${parsedArticles.length}`
-              : `同期中... ${i + 1}/${parsedArticles.length}`;
-            if (useNouns) {
-              try {
-                const nouns = await extractNounsFromText(art.title, art.body);
-                await saveArticleWithNouns(art, nouns);
-              } catch (_) {
-                const tx = db.transaction(STORE_ARTICLES, "readwrite");
-                tx.objectStore(STORE_ARTICLES).put(art);
-                await waitTx(tx);
-              }
-            } else {
-              const tx = db.transaction(STORE_ARTICLES, "readwrite");
-              tx.objectStore(STORE_ARTICLES).put(art);
-              await waitTx(tx);
+            await saveArticleBasic(parsedArticles[i]);
+            if (i % 20 === 0) {
+              els.status.textContent = `記事を保存中... ${i + 1}/${parsedArticles.length}`;
+              await new Promise(r => setTimeout(r, 0));
             }
-            await new Promise(r => setTimeout(r, 0));
           }
 
           els.status.className = "status ok";
-          els.status.textContent = `${parsedArticles.length}件の記事を同期しました`;
+          els.status.textContent = `${parsedArticles.length}件の記事をインポートしました`;
           await loadAllFromDB();
+          enqueueArticleTitles(parsedArticles.map(a => a.title));
           if (window.innerWidth <= 768) els.filterSection.classList.remove("open");
         } catch (err) {
           els.status.className = "status";
@@ -593,7 +813,8 @@
         currentFiltered.forEach(art => {
           const item = document.createElement("div");
           item.className = "article-item";
-          item.innerHTML = `<span class="date">${art.date}</span><strong>${art.title}</strong>`;
+          const pendingMark = needsNounIndexing(art) ? '<span style="font-size:0.7rem;opacity:0.6;"> [解析待ち]</span>' : "";
+          item.innerHTML = `<span class="date">${art.date}</span><strong>${art.title}</strong>${pendingMark}`;
           item.addEventListener("click", () => {
             document.querySelectorAll(".article-item").forEach(el => el.classList.remove("active"));
             item.classList.add("active");
@@ -738,6 +959,14 @@
 
       function renderNounChips(container, art) {
         container.innerHTML = "";
+        if (needsNounIndexing(art)) {
+          const hint = document.createElement("span");
+          hint.style.cssText = "font-size:0.8rem;color:var(--muted);";
+          hint.textContent = "形態素解析待ち...";
+          container.appendChild(hint);
+          container.style.display = "block";
+          return;
+        }
         const ids = art.nounIds || [];
         if (ids.length === 0) { container.style.display = "none"; return; }
         ids.forEach(id => {
