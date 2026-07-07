@@ -18,7 +18,7 @@
       --warn: #b25000;
       --danger: #d12e26;
       --modal-bg: rgba(0, 0, 0, 0.4);
-      --tag-bg: #e8e8ed;
+      --noun-bg: #e8e8ed;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -31,7 +31,7 @@
         --ok: #30d158;
         --warn: #ff9f0a;
         --danger: #ff453a;
-        --tag-bg: #3a3a3c;
+        --noun-bg: #3a3a3c;
       }
     }
     * { box-sizing: border-box; }
@@ -46,7 +46,9 @@
     .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; width: 100%; }
     h1 { font-size: 1.1rem; margin: 0; }
     label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem; color: var(--muted); }
-    
+
+    .input-container { position: relative; }
+
     sidebar .card input[type="text"] {
       width: 100%; font: inherit; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
       background: var(--bg); color: var(--text);
@@ -55,15 +57,9 @@
       width: 100% !important; font: inherit; height: 42px !important; padding: 0 12px !important; border: 1px solid var(--border) !important; border-radius: 8px !important;
       background: var(--bg) !important; color: var(--text) !important; display: block !important; box-sizing: border-box !important; margin: 0 !important;
     }
-    sidebar .card .date-range input[type="date"]:not(.has-value):not(:focus)::-webkit-datetime-edit {
-      opacity: 0;
-    }
-    sidebar .card .date-range input[type="date"]:not(.has-value)::-webkit-calendar-picker-indicator {
-      opacity: 1;
-    }
     sidebar .card .date-range { display: flex !important; flex-direction: column !important; gap: 4px !important; width: 100% !important; box-sizing: border-box !important; }
     .date-separator { text-align: center; font-size: 0.75rem; color: var(--muted); margin: 2px 0; font-weight: bold; width: 100%; }
-    
+
     .suggest-list {
       position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--border);
       border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; display: none; margin-top: 4px;
@@ -71,7 +67,7 @@
     }
     .suggest-item { padding: 10px; cursor: pointer; font-size: 0.85rem; display: flex; justify-content: space-between; }
     .suggest-item:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-    
+
     .dropzone { border: 2px dashed var(--border); border-radius: 10px; padding: 16px; text-align: center; background: var(--bg); cursor: pointer; width: 100%; }
     .dropzone.dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
     .dropzone input[type="file"] { display: none; }
@@ -104,10 +100,14 @@
     .viewer h2 { margin: 0; font-size: 1.3rem; }
     .viewer .meta { color: var(--muted); font-size: 0.85rem; }
     .viewer .body { background: var(--card); padding: 16px; border-radius: 12px; border: 1px solid var(--border); white-space: pre-wrap; word-break: break-word; font-size: 0.95rem; }
-    
-    .tag-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
-    .tag-link { background: var(--tag-bg); color: var(--accent); padding: 6px 12px; border-radius: 16px; font-size: 0.85rem; font-weight: 600; text-decoration: none; cursor: pointer; }
-    
+
+    .noun-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .noun-chip {
+      background: var(--noun-bg); color: var(--accent); padding: 6px 12px; border-radius: 16px;
+      font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none;
+    }
+    .noun-chip:hover { background: color-mix(in srgb, var(--accent) 15%, var(--noun-bg)); }
+
     button.action-btn { width: 100%; padding: 10px; font-size: 0.85rem; border: none; border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600; text-align: center; }
     .btn-accent { background: var(--accent); }
     .btn-ok { background: var(--ok); margin-top: 6px; }
@@ -149,10 +149,10 @@
         <h1 style="display:inline-block; font-size:1.1rem; margin:0;">記事管理スタジオ</h1>
         <div class="status-area">
           <div id="status" class="status">DB接続中...</div>
-          <button id="clearDbBtn" class="clear-db-btn">⚠️ DBクリア</button>
+          <button id="clearDbBtn" class="clear-db-btn">$26A0$FE0F DBクリア</button>
         </div>
       </div>
-      <button id="mobileToggleBtn" class="mobile-filter-toggle">🔍 検索・インポート条件を開く</button>
+      <button id="mobileToggleBtn" class="mobile-filter-toggle">$D83D$DD0D 検索・インポート条件を開く</button>
       <div id="filterSection" class="filter-section">
         <div class="card">
           <div id="dropzone" class="dropzone">
@@ -162,9 +162,9 @@
         </div>
         <div class="card" style="display:flex; flex-direction:column; gap:6px;">
           <div><label for="searchQuery">フリーワード検索</label><input id="searchQuery" type="text" placeholder="スペース区切りでAND検索" autocomplete="off"></div>
-          <div class="input-container"><label for="searchTags">タグ検索</label><input id="searchTags" type="text" placeholder="タップで登録タグ一覧を表示" autocomplete="off"><div id="suggestList" class="suggest-list"></div></div>
-          <div><label>日付期間検索</label><div class="date-range"><input id="dateStart" type="date"><div class="date-separator">〜</div><input id="dateEnd" type="date"></div></div>
-          <button id="startPipelineBtn" class="action-btn btn-ok">📥 マッチ記事を順次ZIP保存</button>
+          <div class="input-container"><label for="searchNoun">名詞で絞り込み</label><input id="searchNoun" type="text" placeholder="タップで頻出名詞一覧を表示" autocomplete="off"><div id="nounSuggestList" class="suggest-list"></div></div>
+          <div><label>日付期間検索</label><div class="date-range"><input id="dateStart" type="date"><div class="date-separator">$301C</div><input id="dateEnd" type="date"></div></div>
+          <button id="startPipelineBtn" class="action-btn btn-ok">$D83D$DCE5 マッチ記事を順次ZIP保存</button>
         </div>
       </div>
       <div class="list-header"><span id="matchCount" class="match-count">該当: 0件</span><button id="sortToggleBtn" class="sort-toggle">▼ 新しい順</button></div>
@@ -174,8 +174,9 @@
       <div id="viewer" class="viewer" style="display: none;">
         <div class="viewer-content">
           <h2 id="viewTitle">記事タイトル</h2><div id="viewMeta" class="meta">日付: --</div>
-          <div><button id="copyBodyBtn" class="action-btn btn-accent">📋 本文を一撃コピー</button></div>
-          <div id="viewBody" class="body"></div><div id="viewTags" class="tag-container"></div>
+          <div><button id="copyBodyBtn" class="action-btn btn-accent">$D83D$DCCB 本文を一撃コピー</button></div>
+          <div id="viewBody" class="body"></div>
+          <div id="viewNouns" class="noun-container"></div>
         </div>
       </div>
       <div id="viewerPlaceholder" class="placeholder-text"></div>
@@ -187,15 +188,16 @@
       <div class="viewer">
         <div class="viewer-content">
           <h2 id="modalTitle">記事タイトル</h2><div id="modalMeta" class="meta">日付: --</div>
-          <div><button id="modalCopyBtn" class="action-btn btn-accent">📋 本文を一撃コピー</button></div>
-          <div id="modalBody" class="body"></div><div id="modalTags" class="tag-container"></div>
+          <div><button id="modalCopyBtn" class="action-btn btn-accent">$D83D$DCCB 本文を一撃コピー</button></div>
+          <div id="modalBody" class="body"></div>
+          <div id="modalNouns" class="noun-container"></div>
         </div>
       </div>
     </div>
   </div>
   <div id="pipelineModal" class="pipeline-modal">
     <div class="pipeline-box">
-      <h3 style="margin:0; font-size:1.1rem;">📦 順次ZIPエクスポート</h3>
+      <h3 style="margin:0; font-size:1.1rem;">$D83D$DCE6 順次ZIPエクスポート</h3>
       <div id="pipelineStatus" style="font-size:0.9rem; color:var(--accent);">準備中...</div>
       <progress id="pipelineProgress" max="100" value="0"></progress>
       <div class="pipeline-actions">
@@ -207,143 +209,591 @@
   </div>
   <script>
     "use strict";
-    window.addEventListener('load', () => {
-        if (typeof JSZip === 'undefined') {
-            document.getElementById('status').textContent = "エラー: jszip.min.js 未読込";
-            return;
-        }
-        initApp();
+
+    window.addEventListener("load", () => {
+      if (typeof JSZip === "undefined") {
+        document.getElementById("status").textContent = "エラー: jszip.min.js 未読込";
+        return;
+      }
+      initApp();
     });
 
     function initApp() {
-        const DB_NAME = "noteuniversalarchivedb";
-        const DB_VERSION = 1;
-        const STORE_NAME = "articles";
-        let db = null, allArticles = [], currentFiltered = [], currentSortOrder = "desc", tagCounts = {}, pipelineToken = 0, pipePendingBlob = null, pipePendingFilename = "", pipeDownloadUrl = "";
+      const DB_NAME = "NoteUniversalArchiveDB";
+      const DB_VERSION = 2;
+      const STORE_ARTICLES = "articles";
+      const STORE_NOUNS = "nouns";
+      const STORE_ARTICLE_NOUNS = "article_nouns";
+      let db = null;
+      let allArticles = [];
+      let allNouns = [];
+      let nounById = new Map();
+      let nounByWord = new Map();
+      let currentFiltered = [];
+      let dragDepth = 0;
+      let currentSortOrder = "desc";
+      let pipelineToken = 0;
+      let pipePendingBlob = null;
+      let pipePendingFilename = "";
+      let pipeDownloadUrl = "";
+      let activeArticle = null;
+      let nounWorker = null;
+      let nounWorkerReady = false;
+      let nounWorkerInitPromise = null;
+      let workerReqSeq = 0;
+      const workerWaiters = new Map();
 
-        const els = {
-            dropzone: document.getElementById("dropzone"), zipInput: document.getElementById("zipInput"),
-            searchQuery: document.getElementById("searchQuery"), searchTags: document.getElementById("searchTags"),
-            dateStart: document.getElementById("dateStart"), dateEnd: document.getElementById("dateEnd"),
-            startPipelineBtn: document.getElementById("startPipelineBtn"), clearDbBtn: document.getElementById("clearDbBtn"),
-            suggestList: document.getElementById("suggestList"), sortToggleBtn: document.getElementById("sortToggleBtn"),
-            articleList: document.getElementById("articleList"), matchCount: document.getElementById("matchCount"),
-            status: document.getElementById("status"), viewer: document.getElementById("viewer"),
-            viewerPlaceholder: document.getElementById("viewerPlaceholder"), viewTitle: document.getElementById("viewTitle"),
-            viewMeta: document.getElementById("viewMeta"), viewBody: document.getElementById("viewBody"),
-            viewTags: document.getElementById("viewTags"), copyBodyBtn: document.getElementById("copyBodyBtn"),
-            mobileToggleBtn: document.getElementById("mobileToggleBtn"), filterSection: document.getElementById("filterSection"),
-            mobileModal: document.getElementById("mobileModal"), modalCloseBtn: document.getElementById("modalCloseBtn"),
-            modalTitle: document.getElementById("modalTitle"), modalMeta: document.getElementById("modalMeta"),
-            modalBody: document.getElementById("modalBody"), modalTags: document.getElementById("modalTags"),
-            modalCopyBtn: document.getElementById("modalCopyBtn"), pipelineModal: document.getElementById("pipelineModal"),
-            pipelineStatus: document.getElementById("pipelineStatus"), pipelineProgress: document.getElementById("pipelineProgress"),
-            pipeDownloadBtn: document.getElementById("pipeDownloadBtn"), pipeContinueBtn: document.getElementById("pipeContinueBtn"),
-            pipeCancelBtn: document.getElementById("pipeCancelBtn")
-        };
+      const els = {
+        dropzone: document.getElementById("dropzone"),
+        zipInput: document.getElementById("zipInput"),
+        searchQuery: document.getElementById("searchQuery"),
+        searchNoun: document.getElementById("searchNoun"),
+        nounSuggestList: document.getElementById("nounSuggestList"),
+        dateStart: document.getElementById("dateStart"),
+        dateEnd: document.getElementById("dateEnd"),
+        startPipelineBtn: document.getElementById("startPipelineBtn"),
+        clearDbBtn: document.getElementById("clearDbBtn"),
+        sortToggleBtn: document.getElementById("sortToggleBtn"),
+        articleList: document.getElementById("articleList"),
+        matchCount: document.getElementById("matchCount"),
+        status: document.getElementById("status"),
+        viewer: document.getElementById("viewer"),
+        viewerPlaceholder: document.getElementById("viewerPlaceholder"),
+        viewTitle: document.getElementById("viewTitle"),
+        viewMeta: document.getElementById("viewMeta"),
+        viewBody: document.getElementById("viewBody"),
+        viewNouns: document.getElementById("viewNouns"),
+        copyBodyBtn: document.getElementById("copyBodyBtn"),
+        mobileToggleBtn: document.getElementById("mobileToggleBtn"),
+        filterSection: document.getElementById("filterSection"),
+        mobileModal: document.getElementById("mobileModal"),
+        modalCloseBtn: document.getElementById("modalCloseBtn"),
+        modalTitle: document.getElementById("modalTitle"),
+        modalMeta: document.getElementById("modalMeta"),
+        modalBody: document.getElementById("modalBody"),
+        modalNouns: document.getElementById("modalNouns"),
+        modalCopyBtn: document.getElementById("modalCopyBtn"),
+        pipelineModal: document.getElementById("pipelineModal"),
+        pipelineStatus: document.getElementById("pipelineStatus"),
+        pipelineProgress: document.getElementById("pipelineProgress"),
+        pipeDownloadBtn: document.getElementById("pipeDownloadBtn"),
+        pipeContinueBtn: document.getElementById("pipeContinueBtn"),
+        pipeCancelBtn: document.getElementById("pipeCancelBtn")
+      };
 
-        const request = indexedDB.open(DB_NAME, DB_VERSION);
-        request.onupgradeneeded = (e) => { e.target.result.createObjectStore(STORE_NAME, { keyPath: "title" }); };
-        request.onsuccess = (e) => { db = e.target.result; els.status.textContent = "準備完了"; loadArticlesFromDB(); };
-
-        function loadArticlesFromDB() {
-            const transaction = db.transaction(STORE_NAME, "readonly");
-            transaction.objectStore(STORE_NAME).getAll().onsuccess = (e) => { allArticles = e.target.result || []; calculateTagCounts(); renderList(); };
-        }
-
-        function calculateTagCounts() {
-            tagCounts = {};
-            allArticles.forEach(art => { (art.tags || []).forEach(tag => { tagCounts[tag] = (tagCounts[tag] || 0) + 1; }); });
-        }
-
-        els.clearDbBtn.onclick = () => { if(confirm("クリアしますか？")) { db.close(); indexedDB.deleteDatabase(DB_NAME).onsuccess = () => location.reload(); } };
-
-        async function processZip(file) {
-            els.status.textContent = "展開中...";
-            try {
-                const zip = await JSZip.loadAsync(file);
-                const xmlEntries = Object.keys(zip.files).filter(name => !zip.files[name].dir && /\.xml$/i.test(name));
-                const transaction = db.transaction(STORE_NAME, "readwrite");
-                const store = transaction.objectStore(STORE_NAME);
-                for (const path of xmlEntries) {
-                    const doc = new DOMParser().parseFromString(await zip.files[path].async("string"), "application/xml");
-                    const items = doc.getElementsByTagName("item");
-                    for (let i = 0; i < items.length; i++) {
-                        const item = items[i];
-                        if (item.getElementsByTagName("wp:post_type")[0]?.textContent?.trim() !== "post") continue;
-                        const title = item.getElementsByTagName("title")[0]?.textContent?.trim() || "untitled";
-                        const date = item.getElementsByTagName("wp:post_date")[0]?.textContent?.trim() || "unknown";
-                        const body = item.getElementsByTagNameNS("http://purl.org/rss/1.0/modules/content/", "encoded")[0]?.textContent || "";
-                        const cats = item.getElementsByTagName("category");
-                        const tags = [];
-                        for (let j = 0; j < cats.length; j++) { if (cats[j].getAttribute("domain") === "post_tag") tags.push(cats[j].textContent.trim()); }
-                        store.put({ title, date, body: htmlToText(body), tags });
-                    }
-                }
-                transaction.oncomplete = () => { els.status.textContent = "同期完了"; loadArticlesFromDB(); };
-            } catch (e) { els.status.textContent = "エラー"; }
-        }
-
-        function renderList() {
-            const queryWords = els.searchQuery.value.toLowerCase().split(/\s+/).filter(w=>w);
-            const tagWords = els.searchTags.value.toLowerCase().split(/\s+/).filter(w=>w);
-            const startVal = els.dateStart.value, endVal = els.dateEnd.value;
-            currentFiltered = allArticles.filter(art => {
-                const bT = (art.title + " " + art.body).toLowerCase();
-                const mQ = queryWords.every(w => bT.includes(w));
-                const aT = (art.tags || []).map(t => t.toLowerCase());
-                const mT = tagWords.every(w => aT.includes(w.replace("#", "")));
-                const mD = (!startVal || art.date >= startVal) && (!endVal || art.date <= endVal);
-                return mQ && mT && mD;
-            });
-            els.matchCount.textContent = `該当: ${currentFiltered.length}件`;
-            els.articleList.innerHTML = "";
-            currentFiltered.forEach(art => {
-                const item = document.createElement("div");
-                item.className = "article-item";
-                item.innerHTML = `<span class="date">${art.date}</span><strong>${art.title}</strong>`;
-                item.onclick = () => showArticle(art);
-                els.articleList.appendChild(item);
-            });
-        }
-        
-        function showArticle(art) {
-            const isM = window.innerWidth <= 768;
-            (isM ? els.modalTitle : els.viewTitle).textContent = art.title;
-            (isM ? els.modalBody : els.viewBody).textContent = art.body;
-            (isM ? els.modalTags : els.viewTags).innerHTML = (art.tags || []).map(t => `<a class="tag-link">#${t}</a>`).join("");
-            (isM ? els.modalTags : els.viewTags).querySelectorAll('.tag-link').forEach((el, i) => {
-                el.onclick = () => executeTagSearch(art.tags[i]);
-            });
-            (isM ? els.mobileModal : els.viewer).style.display = isM ? "flex" : "block";
-            if(isM) els.mobileModal.classList.add("open");
-        }
-
-        function executeTagSearch(tag) {
-            els.searchTags.value = tag; renderList();
-            if(window.innerWidth <= 768) { els.mobileModal.classList.remove("open"); els.filterSection.classList.remove("open"); }
-        }
-
-        els.dropzone.addEventListener("click", () => els.zipInput.click());
-        els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); els.dropzone.classList.add("dragover"); });
-        els.dropzone.addEventListener("dragleave", () => els.dropzone.classList.remove("dragover"));
-        els.dropzone.addEventListener("drop", (e) => {
-            e.preventDefault();
-            els.dropzone.classList.remove("dragover");
-            const file = e.dataTransfer.files[0];
-            if (file && /\.zip$/i.test(file.name)) processZip(file);
+      function idbRequest(req) {
+        return new Promise((resolve, reject) => {
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => reject(req.error);
         });
-        els.zipInput.onchange = (e) => {
-            const file = e.target.files[0];
-            if (file) processZip(file);
-            e.target.value = "";
-        };
-        els.searchQuery.oninput = renderList;
-        els.searchTags.oninput = renderList;
-        els.dateStart.addEventListener("change", () => { els.dateStart.classList.toggle("has-value", !!els.dateStart.value); renderList(); });
-        els.dateEnd.addEventListener("change", () => { els.dateEnd.classList.toggle("has-value", !!els.dateEnd.value); renderList(); });
+      }
 
-        function htmlToText(v) { return v.replace(/<[^>]+>/g, "").trim(); }
+      function waitTx(tx) {
+        return new Promise((resolve, reject) => {
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      }
+
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = (e) => {
+        const idb = e.target.result;
+        if (!idb.objectStoreNames.contains(STORE_ARTICLES)) {
+          idb.createObjectStore(STORE_ARTICLES, { keyPath: "title" });
+        }
+        if (!idb.objectStoreNames.contains(STORE_NOUNS)) {
+          const nounStore = idb.createObjectStore(STORE_NOUNS, { keyPath: "id", autoIncrement: true });
+          nounStore.createIndex("word", "word", { unique: true });
+        }
+        if (!idb.objectStoreNames.contains(STORE_ARTICLE_NOUNS)) {
+          const linkStore = idb.createObjectStore(STORE_ARTICLE_NOUNS, { keyPath: ["articleTitle", "nounId"] });
+          linkStore.createIndex("nounId", "nounId", { unique: false });
+          linkStore.createIndex("articleTitle", "articleTitle", { unique: false });
+        }
+      };
+      request.onsuccess = (e) => {
+        db = e.target.result;
+        els.status.textContent = "データベース準備完了";
+        loadAllFromDB();
+        ensureNounWorker().catch(() => {
+          els.status.textContent = "警告: 名詞解析エンジンの読込に失敗";
+        });
+      };
+      request.onerror = () => { els.status.textContent = "エラー: DB接続失敗"; };
+
+      function rebuildNounMaps() {
+        nounById = new Map();
+        nounByWord = new Map();
+        allNouns.forEach(n => {
+          nounById.set(n.id, n);
+          nounByWord.set(n.word, n);
+        });
+      }
+
+      async function loadAllFromDB() {
+        const tx = db.transaction([STORE_ARTICLES, STORE_NOUNS], "readonly");
+        allArticles = await idbRequest(tx.objectStore(STORE_ARTICLES).getAll());
+        allNouns = await idbRequest(tx.objectStore(STORE_NOUNS).getAll());
+        allNouns.sort((a, b) => (b.articleCount || 0) - (a.articleCount || 0));
+        rebuildNounMaps();
+        renderList();
+      }
+
+      function ensureNounWorker() {
+        if (nounWorkerReady) return Promise.resolve();
+        if (nounWorkerInitPromise) return nounWorkerInitPromise;
+        nounWorkerInitPromise = new Promise((resolve, reject) => {
+          nounWorker = new Worker("noun-worker.js");
+          nounWorker.onmessage = (e) => {
+            const { type, id, nouns, message } = e.data;
+            if (type === "ready" && id === "init") {
+              nounWorkerReady = true;
+              workerWaiters.delete("init");
+              resolve();
+              return;
+            }
+            const waiter = workerWaiters.get(id);
+            if (!waiter) return;
+            workerWaiters.delete(id);
+            if (type === "extracted") waiter.resolve(nouns);
+            else if (type === "error") waiter.reject(new Error(message));
+          };
+          nounWorker.onerror = (err) => reject(err);
+          workerWaiters.set("init", { resolve, reject });
+          nounWorker.postMessage({ type: "init", id: "init" });
+        });
+        return nounWorkerInitPromise;
+      }
+
+      function extractNounsFromText(title, body) {
+        return new Promise((resolve, reject) => {
+          if (!nounWorkerReady) {
+            reject(new Error("形態素解析エンジン未準備"));
+            return;
+          }
+          const id = "req_" + (++workerReqSeq);
+          workerWaiters.set(id, { resolve, reject });
+          nounWorker.postMessage({ type: "extract", id, title, body });
+        });
+      }
+
+      async function clearArticleNounLinks(articleTitle) {
+        const tx = db.transaction([STORE_ARTICLE_NOUNS, STORE_NOUNS], "readwrite");
+        const linkStore = tx.objectStore(STORE_ARTICLE_NOUNS);
+        const nounStore = tx.objectStore(STORE_NOUNS);
+        const links = await idbRequest(linkStore.index("articleTitle").getAll(articleTitle));
+        for (const link of links) {
+          const noun = await idbRequest(nounStore.get(link.nounId));
+          if (noun) {
+            noun.articleCount = Math.max(0, (noun.articleCount || 1) - 1);
+            nounStore.put(noun);
+          }
+          linkStore.delete([link.articleTitle, link.nounId]);
+        }
+        await waitTx(tx);
+      }
+
+      async function linkArticleToNouns(articleTitle, nounWords) {
+        const tx = db.transaction([STORE_NOUNS, STORE_ARTICLE_NOUNS], "readwrite");
+        const nounStore = tx.objectStore(STORE_NOUNS);
+        const linkStore = tx.objectStore(STORE_ARTICLE_NOUNS);
+        const nounIds = [];
+        for (const word of nounWords) {
+          let noun = await idbRequest(nounStore.index("word").get(word));
+          if (!noun) {
+            const newId = await idbRequest(nounStore.add({ word, articleCount: 0 }));
+            noun = { id: newId, word, articleCount: 0 };
+          }
+          noun.articleCount = (noun.articleCount || 0) + 1;
+          nounStore.put(noun);
+          linkStore.put({ articleTitle, nounId: noun.id });
+          nounIds.push(noun.id);
+        }
+        await waitTx(tx);
+        return nounIds;
+      }
+
+      async function saveArticleWithNouns(article, nounWords) {
+        await clearArticleNounLinks(article.title);
+        const nounIds = await linkArticleToNouns(article.title, nounWords);
+        const tx = db.transaction(STORE_ARTICLES, "readwrite");
+        tx.objectStore(STORE_ARTICLES).put({ ...article, nounIds });
+        await waitTx(tx);
+      }
+
+      els.clearDbBtn.addEventListener("click", () => {
+        if (!confirm("データベース内のすべての記事・名詞データを完全に消去します。よろしいですか？")) return;
+        if (db) db.close();
+        indexedDB.deleteDatabase(DB_NAME).onsuccess = () => {
+          alert("データベースを完全に初期化しました。最新のパーステストを行うために再読み込みします。");
+          location.reload();
+        };
+      });
+
+      async function processZip(file) {
+        if (!file) return;
+        if (!db) { els.status.textContent = "エラー: DB未接続"; return; }
+        els.status.className = "status";
+        els.status.textContent = "zip展開中...";
+        try {
+          const zip = await JSZip.loadAsync(file);
+          const xmlEntries = Object.keys(zip.files).filter(name => !zip.files[name].dir && /\.xml$/i.test(name));
+          if (xmlEntries.length === 0) throw new Error("zip内にXMLが見つかりません。");
+          els.status.textContent = "データ解析中...";
+          const parsedArticles = [];
+
+          for (const path of xmlEntries) {
+            const xmlText = await zip.files[path].async("string");
+            const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+            const items = doc.getElementsByTagName("item");
+            for (let i = 0; i < items.length; i++) {
+              const item = items[i];
+              const postType = item.getElementsByTagName("wp:post_type")[0]?.textContent?.trim();
+              const status = item.getElementsByTagName("wp:status")[0]?.textContent?.trim();
+              if (postType !== "post" && postType !== "page") continue;
+              if (status && status !== "publish") continue;
+
+              const title = item.getElementsByTagName("title")[0]?.textContent?.trim() || "untitled";
+              const date = item.getElementsByTagName("wp:post_date")[0]?.textContent?.trim() || "unknown";
+              const rawBody = item.getElementsByTagName("content:encoded")[0]?.textContent || "";
+              const body = htmlToText(rawBody);
+              if (!body) continue;
+              parsedArticles.push({ title, date, body });
+            }
+          }
+
+          if (parsedArticles.length === 0) throw new Error("取り込める記事がありません。");
+
+          els.status.textContent = "形態素解析エンジン準備中...";
+          await ensureNounWorker();
+
+          for (let i = 0; i < parsedArticles.length; i++) {
+            const art = parsedArticles[i];
+            els.status.textContent = `名詞抽出中... ${i + 1}/${parsedArticles.length}`;
+            const nouns = await extractNounsFromText(art.title, art.body);
+            await saveArticleWithNouns(art, nouns);
+            await new Promise(r => setTimeout(r, 0));
+          }
+
+          els.status.className = "status ok";
+          els.status.textContent = `${parsedArticles.length}件の記事を同期しました`;
+          await loadAllFromDB();
+          if (window.innerWidth <= 768) els.filterSection.classList.remove("open");
+        } catch (err) {
+          els.status.className = "status";
+          els.status.textContent = "エラー: " + err.message;
+        }
+      }
+
+      function splitKeywords(inputStr) { return inputStr.replace(/　/g, " ").toLowerCase().split(/\s+/).filter(w => w); }
+
+      function resolveNounFilterIds(input) {
+        const words = splitKeywords(input);
+        if (words.length === 0) return [];
+        const ids = [];
+        for (const w of words) {
+          const noun = nounByWord.get(w) || allNouns.find(n => n.word.toLowerCase() === w);
+          if (noun) ids.push(noun.id);
+        }
+        return ids;
+      }
+
+      function renderList() {
+        const queryWords = splitKeywords(els.searchQuery.value);
+        const nounInput = els.searchNoun.value.trim();
+        const nounWords = splitKeywords(nounInput);
+        const nounFilterIds = resolveNounFilterIds(nounInput);
+        const startVal = els.dateStart.value;
+        const endVal = els.dateEnd.value;
+
+        currentFiltered = allArticles.filter(art => {
+          const bodyAndTitle = (art.title + " " + art.body).toLowerCase();
+          const matchQuery = queryWords.every(word => bodyAndTitle.includes(word));
+          const artNounIds = art.nounIds || [];
+          let matchNoun = true;
+          if (nounWords.length > 0) {
+            matchNoun = nounFilterIds.length === nounWords.length
+              && nounFilterIds.every(id => artNounIds.includes(id));
+          }
+
+          let matchDate = true;
+          if (art.date !== "unknown") {
+            const artDateStr = art.date.split(" ")[0];
+            if (startVal && artDateStr < startVal) matchDate = false;
+            if (endVal && artDateStr > endVal) matchDate = false;
+          } else if (startVal || endVal) { matchDate = false; }
+
+          return matchQuery && matchNoun && matchDate;
+        });
+
+        currentFiltered.sort((a, b) => {
+          return currentSortOrder === "desc" ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date);
+        });
+
+        els.matchCount.textContent = `該当: ${currentFiltered.length}件`;
+        els.articleList.innerHTML = "";
+        currentFiltered.forEach(art => {
+          const item = document.createElement("div");
+          item.className = "article-item";
+          item.innerHTML = `<span class="date">${art.date}</span><strong>${art.title}</strong>`;
+          item.addEventListener("click", () => {
+            document.querySelectorAll(".article-item").forEach(el => el.classList.remove("active"));
+            item.classList.add("active");
+            showArticle(art);
+          });
+          els.articleList.appendChild(item);
+        });
+      }
+
+      function sanitizeFilename(name) { return name.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, " ").trim(); }
+      function formatArticle(item) { return `${item.title}\ndate: ${item.date || "unknown"}\n\n${item.body}\n`; }
+      function revokePipeUrl() { if (pipeDownloadUrl) { URL.revokeObjectURL(pipeDownloadUrl); pipeDownloadUrl = ""; } }
+
+      function triggerPipeDownload(blob, filename) {
+        revokePipeUrl();
+        pipeDownloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = pipeDownloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
+
+      async function waitForPipeDownloadOrContinue(activeToken) {
+        return new Promise((resolve, reject) => {
+          const cleanup = () => {
+            els.pipeDownloadBtn.removeEventListener("click", onDownloadOnce);
+            els.pipeContinueBtn.removeEventListener("click", onContinueOnce);
+            els.pipeContinueBtn.disabled = true;
+          };
+          const onDownloadOnce = () => {
+            if (activeToken !== pipelineToken) { cleanup(); reject(new Error("中止")); return; }
+            if (!pipePendingBlob) return;
+            triggerPipeDownload(pipePendingBlob, pipePendingFilename);
+            pipePendingBlob = null;
+            pipePendingFilename = "";
+            els.pipeDownloadBtn.disabled = true;
+            els.pipeContinueBtn.disabled = false;
+            els.pipelineStatus.textContent = "ダウンロード完了。下のボタンで次へ進んでください。";
+          };
+          const onContinueOnce = () => {
+            if (activeToken !== pipelineToken) { cleanup(); reject(new Error("中止")); return; }
+            if (pipePendingBlob) return;
+            cleanup();
+            resolve();
+          };
+          els.pipeContinueBtn.disabled = true;
+          els.pipeDownloadBtn.disabled = false;
+          els.pipeDownloadBtn.addEventListener("click", onDownloadOnce);
+          els.pipeContinueBtn.addEventListener("click", onContinueOnce);
+        });
+      }
+
+      els.startPipelineBtn.addEventListener("click", async () => {
+        if (currentFiltered.length === 0) { alert("出力対象の記事がありません。"); return; }
+        const fmt = "txt";
+        const batchSize = 200;
+        const token = ++pipelineToken;
+        revokePipeUrl();
+        pipePendingBlob = null;
+        pipePendingFilename = "";
+        els.pipelineProgress.value = 0;
+        els.pipelineStatus.textContent = "ZIPバッチ初期化中...";
+        els.pipelineModal.classList.add("open");
+
+        try {
+          let articleIndex = 1;
+          let batchIndex = 1;
+          let batchArticles = [];
+
+          for (let i = 0; i < currentFiltered.length; i++) {
+            if (token !== pipelineToken) throw new Error("中止");
+            const art = currentFiltered[i];
+            const filename = `${String(articleIndex).padStart(3, "0")}_${sanitizeFilename(art.title)}.txt`;
+            batchArticles.push({ name: filename, content: formatArticle(art) });
+            articleIndex++;
+
+            if (batchArticles.length >= batchSize || i === currentFiltered.length - 1) {
+              const startNo = articleIndex - batchArticles.length;
+              const endNo = articleIndex - 1;
+              const zipName = `note_articles_${fmt}_${String(startNo).padStart(3, "0")}-${String(endNo).padStart(3, "0")}.zip`;
+              els.pipelineStatus.textContent = `バッチ ${batchIndex} 生成中... (${batchArticles.length}件)`;
+              const zip = new JSZip();
+              batchArticles.forEach(b => zip.file(b.name, b.content));
+              const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 5 } });
+              if (token !== pipelineToken) throw new Error("中止");
+              pipePendingBlob = blob;
+              pipePendingFilename = zipName;
+              els.pipelineProgress.value = Math.round(((i + 1) / currentFiltered.length) * 100);
+              els.pipelineStatus.textContent = `バッチ ${batchIndex} (${startNo}$301C${endNo}) の準備完了。`;
+              await waitForPipeDownloadOrContinue(token);
+              batchArticles = [];
+              batchIndex++;
+            }
+          }
+
+          els.pipelineStatus.textContent = `$D83C$DF89 全てのエクスポートが完了しました！計 ${articleIndex - 1} 記事`;
+          els.pipeDownloadBtn.disabled = true;
+          els.pipeContinueBtn.textContent = "閉じる";
+          els.pipeContinueBtn.disabled = false;
+          const closeOnce = () => {
+            els.pipelineModal.classList.remove("open");
+            els.pipeContinueBtn.textContent = "次のバッチへ";
+            els.pipeContinueBtn.removeEventListener("click", closeOnce);
+          };
+          els.pipeContinueBtn.addEventListener("click", closeOnce);
+        } catch (err) {
+          els.pipelineModal.classList.remove("open");
+          if (err.message !== "中止") alert("エラーが発生しました: " + err.message);
+        }
+      });
+
+      els.pipeCancelBtn.addEventListener("click", () => { pipelineToken++; revokePipeUrl(); els.pipelineModal.classList.remove("open"); });
+
+      function showNounSuggestions() {
+        const inputWord = els.searchNoun.value.toLowerCase().trim();
+        let sorted = allNouns.filter(n => (n.articleCount || 0) > 0);
+        if (inputWord) sorted = sorted.filter(n => n.word.toLowerCase().includes(inputWord));
+        if (sorted.length === 0) { els.nounSuggestList.style.display = "none"; return; }
+        els.nounSuggestList.innerHTML = "";
+        sorted.slice(0, 15).forEach(noun => {
+          const div = document.createElement("div");
+          div.className = "suggest-item";
+          div.innerHTML = `<span>${noun.word}</span><span>${noun.articleCount}件</span>`;
+          div.addEventListener("mousedown", (e) => { e.preventDefault(); executeNounSearch(noun.word); });
+          els.nounSuggestList.appendChild(div);
+        });
+        els.nounSuggestList.style.display = "block";
+      }
+
+      function executeNounSearch(word) {
+        els.searchNoun.value = word;
+        els.nounSuggestList.style.display = "none";
+        renderList();
+        if (window.innerWidth <= 768) {
+          els.filterSection.classList.remove("open");
+          els.mobileToggleBtn.textContent = "$D83D$DD0D 検索・インポート条件を開く";
+          els.mobileModal.classList.remove("open");
+        }
+      }
+
+      function renderNounChips(container, art) {
+        container.innerHTML = "";
+        const ids = art.nounIds || [];
+        if (ids.length === 0) { container.style.display = "none"; return; }
+        ids.forEach(id => {
+          const noun = nounById.get(id);
+          if (!noun) return;
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "noun-chip";
+          chip.textContent = noun.word;
+          chip.addEventListener("click", () => executeNounSearch(noun.word));
+          container.appendChild(chip);
+        });
+        container.style.display = container.childElementCount > 0 ? "flex" : "none";
+      }
+
+      function showArticle(art) {
+        activeArticle = art;
+        const isMobile = window.innerWidth <= 768;
+        const targetTitle = isMobile ? els.modalTitle : els.viewTitle;
+        const targetMeta = isMobile ? els.modalMeta : els.viewMeta;
+        const targetBody = isMobile ? els.modalBody : els.viewBody;
+        const targetNouns = isMobile ? els.modalNouns : els.viewNouns;
+
+        targetTitle.textContent = art.title;
+        targetMeta.textContent = `投稿日: ${art.date}`;
+        targetBody.textContent = art.body;
+        renderNounChips(targetNouns, art);
+
+        if (isMobile) {
+          els.mobileModal.classList.add("open");
+        } else {
+          els.viewerPlaceholder.style.display = "none";
+          els.viewer.style.display = "block";
+        }
+      }
+
+      function handleCopy() {
+        if (!activeArticle) return;
+        navigator.clipboard.writeText(activeArticle.body).then(() => {
+          const targetBtn = window.innerWidth <= 768 ? els.modalCopyBtn : els.copyBodyBtn;
+          const originalText = targetBtn.textContent;
+          targetBtn.textContent = "$D83D$DCCB コピー完了！";
+          setTimeout(() => { targetBtn.textContent = originalText; }, 1500);
+        });
+      }
+
+      els.copyBodyBtn.addEventListener("click", handleCopy);
+      els.modalCopyBtn.addEventListener("click", handleCopy);
+      els.modalCloseBtn.addEventListener("click", () => els.mobileModal.classList.remove("open"));
+      els.mobileModal.addEventListener("click", (e) => { if (e.target === els.mobileModal) els.mobileModal.classList.remove("open"); });
+
+      els.mobileToggleBtn.addEventListener("click", () => {
+        els.filterSection.classList.toggle("open");
+        els.mobileToggleBtn.textContent = els.filterSection.classList.contains("open")
+          ? "▲ 検索・インポート条件を閉じる"
+          : "$D83D$DD0D 検索・インポート条件を開く";
+      });
+
+      els.sortToggleBtn.addEventListener("click", () => {
+        currentSortOrder = (currentSortOrder === "desc") ? "asc" : "desc";
+        els.sortToggleBtn.textContent = (currentSortOrder === "desc") ? "▼ 新しい順" : "▲ 古い順";
+        renderList();
+      });
+
+      window.addEventListener("resize", () => {
+        if (window.innerWidth > 768) {
+          if (els.mobileModal.classList.contains("open")) els.mobileModal.classList.remove("open");
+          if (activeArticle) {
+            els.viewerPlaceholder.style.display = "none";
+            els.viewer.style.display = "block";
+            els.viewTitle.textContent = activeArticle.title;
+            els.viewMeta.textContent = `投稿日: ${activeArticle.date}`;
+            els.viewBody.textContent = activeArticle.body;
+            renderNounChips(els.viewNouns, activeArticle);
+          }
+        }
+      });
+
+      els.dropzone.addEventListener("click", () => els.zipInput.click());
+      els.zipInput.addEventListener("change", (e) => {
+        processZip(e.target.files[0]);
+        e.target.value = "";
+      });
+      els.dropzone.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; els.dropzone.classList.add("dragover"); });
+      els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); });
+      els.dropzone.addEventListener("dragleave", (e) => { e.preventDefault(); dragDepth--; if (dragDepth <= 0) els.dropzone.classList.remove("dragover"); });
+      els.dropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        dragDepth = 0;
+        els.dropzone.classList.remove("dragover");
+        if (e.dataTransfer.files?.[0]) processZip(e.dataTransfer.files[0]);
+      });
+
+      els.searchQuery.addEventListener("input", renderList);
+      els.searchNoun.addEventListener("focus", showNounSuggestions);
+      els.searchNoun.addEventListener("input", () => { showNounSuggestions(); renderList(); });
+      els.searchNoun.addEventListener("blur", () => { els.nounSuggestList.style.display = "none"; });
+      els.dateStart.addEventListener("change", renderList);
+      els.dateEnd.addEventListener("change", renderList);
+
+      function htmlToText(value) {
+        let text = value;
+        text = text.replace(/<br\s*\/?>/gi, "\n");
+        text = text.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li|ul|ol|blockquote|pre|tr)>/gi, "\n");
+        text = text.replace(/<hr\s*\/?>/gi, "\n---\n");
+        text = text.replace(/<script[\s\S]*?<\/script>/gi, "");
+        text = text.replace(/<style[\s\S]*?<\/style>/gi, "");
+        text = text.replace(/<[^>]+>/g, "");
+        const ta = document.createElement("textarea");
+        ta.innerHTML = text;
+        text = ta.value;
+        text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n{3,}/g, "\n\n");
+        return text.trim();
+      }
     }
   </script>
 </body>
