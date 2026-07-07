@@ -1,6 +1,6 @@
 "use strict";
 
-const KUROMOJI_DIC_PATH = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/";
+const KUROMOJI_DIC_BASE = "https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/dict/";
 const BODY_TOP_N = 15;
 
 const STOP_NOUNS = new Set([
@@ -13,6 +13,26 @@ const STOP_NOUNS = new Set([
 ]);
 
 let tokenizer = null;
+
+function patchDictionaryXhr() {
+  if (XMLHttpRequest.prototype.__kuromojiDicPatched) return;
+  const origOpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function (method, url, async, user, password) {
+    let fixed = url;
+    if (typeof fixed === "string") {
+      if (fixed.startsWith("https:/") && !fixed.startsWith("https://")) {
+        fixed = "https://" + fixed.slice(7);
+      } else if (fixed.startsWith("http:/") && !fixed.startsWith("http://")) {
+        fixed = "http://" + fixed.slice(6);
+      } else if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(fixed)) {
+        const name = fixed.replace(/^\.?\/?(dict\/)?/, "");
+        fixed = KUROMOJI_DIC_BASE + name;
+      }
+    }
+    return origOpen.call(this, method, fixed, async, user, password);
+  };
+  XMLHttpRequest.prototype.__kuromojiDicPatched = true;
+}
 
 function isValidNoun(token) {
   if (!token.pos.startsWith("名詞")) return false;
@@ -56,6 +76,15 @@ function extractRepresentativeNouns(title, body) {
   return result;
 }
 
+function loadKuromoji() {
+  patchDictionaryXhr();
+  try {
+    importScripts("kuromoji.min.js");
+    if (typeof kuromoji !== "undefined") return;
+  } catch (_) {}
+  importScripts("https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js");
+}
+
 self.onmessage = function (e) {
   const { type, id, title, body } = e.data;
 
@@ -64,8 +93,15 @@ self.onmessage = function (e) {
       self.postMessage({ type: "ready", id });
       return;
     }
-    importScripts("https://cdn.jsdelivr.net/npm/kuromoji@0.1.2/build/kuromoji.js");
-    kuromoji.builder({ dicPath: KUROMOJI_DIC_PATH }).build((err, t) => {
+    self.postMessage({ type: "status", id, message: "辞書ライブラリ読込中..." });
+    try {
+      loadKuromoji();
+    } catch (err) {
+      self.postMessage({ type: "error", id, message: "kuromoji読込失敗: " + (err.message || String(err)) });
+      return;
+    }
+    self.postMessage({ type: "status", id, message: "辞書ダウンロード中（初回は1-2分かかることがあります）..." });
+    kuromoji.builder({ dicPath: KUROMOJI_DIC_BASE }).build((err, t) => {
       if (err) {
         self.postMessage({ type: "error", id, message: err.message || String(err) });
         return;
