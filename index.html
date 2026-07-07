@@ -14,6 +14,7 @@
       --accent: #0071e3;
       --border: #d2d2d7;
       --ok: #248a3d;
+      --warn: #b25000;
       --modal-bg: rgba(0, 0, 0, 0.4);
       --tag-bg: #e8e8ed;
     }
@@ -26,140 +27,85 @@
         --accent: #409cff;
         --border: #48484a;
         --ok: #30d158;
+        --warn: #ff9f0a;
         --modal-bg: rgba(0, 0, 0, 0.6);
         --tag-bg: #3a3a3c;
       }
     }
     * { box-sizing: border-box; }
     body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
+      margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.5;
     }
-    .wrapper {
-      display: grid;
-      grid-template-columns: 360px 1fr;
-      height: 100vh;
-    }
+    .wrapper { display: grid; grid-template-columns: 360px 1fr; height: 100vh; }
     
-    /* サイドバー */
-    sidebar {
-      background: var(--card);
-      border-right: 1px solid var(--border);
-      padding: 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      overflow-y: auto;
-    }
-    
-    /* メインコンテンツ（PC用） */
-    main {
-      padding: 24px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px;
-    }
+    sidebar { background: var(--card); border-right: 1px solid var(--border); padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; }
+    main { padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; }
     h1 { font-size: 1.1rem; margin: 0; }
     label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem; color: var(--muted); }
     
     .input-container { position: relative; }
-    input[type="text"] {
-      width: 100%; font: inherit; padding: 10px;
-      border: 1px solid var(--border); border-radius: 8px;
+    input[type="text"], input[type="date"], input[type="number"], select {
+      width: 100%; font: inherit; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
       background: var(--bg); color: var(--text);
     }
+    .row { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; margin-top: 6px; }
+    .date-range { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
     
-    /* タグサジェストリスト */
     .suggest-list {
-      position: absolute; top: 100%; left: 0; right: 0;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: 8px; max-height: 200px; overflow-y: auto;
-      z-index: 100; display: none; margin-top: 4px;
+      position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; max-height: 200px; overflow-y: auto; z-index: 100; display: none; margin-top: 4px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    .suggest-item {
-      padding: 10px; cursor: pointer; font-size: 0.85rem;
-      display: flex; justify-content: space-between;
-    }
+    .suggest-item { padding: 10px; cursor: pointer; font-size: 0.85rem; display: flex; justify-content: space-between; }
     .suggest-item:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
-    .suggest-count { color: var(--muted); font-size: 0.75rem; }
-
-    /* ドロップゾーン */
-    .dropzone {
-      border: 2px dashed var(--border); border-radius: 10px;
-      padding: 16px; text-align: center; background: var(--bg); cursor: pointer;
-    }
+    
+    .dropzone { border: 2px dashed var(--border); border-radius: 10px; padding: 16px; text-align: center; background: var(--bg); cursor: pointer; }
     .dropzone.dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
     .dropzone input[type="file"] { display: none; }
+    
     .status { font-size: 0.8rem; color: var(--accent); min-height: 1.2em; margin-top: 2px; }
     .status.ok { color: var(--ok); }
+    .status.warn { color: var(--warn); }
+    progress { width: 100%; height: 8px; margin-top: 6px; }
     
-    /* リストヘッダー */
     .list-header { display: flex; justify-content: space-between; align-items: center; padding: 4px; }
     .match-count { font-size: 0.85rem; font-weight: 600; }
-    .sort-toggle {
-      background: none; border: none; color: var(--accent);
-      font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 4px;
-    }
+    .sort-toggle { background: none; border: none; color: var(--accent); font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 4px 8px; border-radius: 4px; }
     .sort-toggle:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 
-    /* 記事リスト */
-    .article-list {
-      display: flex; flex-direction: column; gap: 6px; flex-grow: 1;
-      overflow-y: auto; min-height: 200px; border: 1px solid var(--border);
-      border-radius: 8px; padding: 6px; background: var(--bg);
-    }
-    .article-item {
-      padding: 10px 12px; background: var(--card); border-radius: 6px;
-      cursor: pointer; border: 1px solid transparent; font-size: 0.9rem;
-    }
+    .article-list { display: flex; flex-direction: column; gap: 6px; flex-grow: 1; overflow-y: auto; min-height: 200px; border: 1px solid var(--border); border-radius: 8px; padding: 6px; background: var(--bg); }
+    .article-item { padding: 10px 12px; background: var(--card); border-radius: 6px; cursor: pointer; border: 1px solid transparent; font-size: 0.9rem; }
     .article-item:hover { border-color: var(--accent); }
     .article-item.active { background: var(--accent); color: white; }
     .article-item .date { font-size: 0.75rem; opacity: 0.7; display: block; margin-bottom: 2px; }
 
-    /* 記事ビューア */
-    .viewer h2 { margin: 0 0 4px 0; font-size: 1.3rem; }
-    .viewer .meta { color: var(--muted); font-size: 0.85rem; margin-bottom: 12px; }
-    .viewer .body {
-      background: var(--card); padding: 16px; border-radius: 12px;
-      border: 1px solid var(--border); white-space: pre-wrap;
-      word-break: break-word; font-size: 0.95rem;
-    }
+    .viewer-content { display: flex; flex-direction: column; gap: 12px; }
+    .viewer h2 { margin: 0; font-size: 1.3rem; }
+    .viewer .meta { color: var(--muted); font-size: 0.85rem; }
+    .viewer .body { background: var(--card); padding: 16px; border-radius: 12px; border: 1px solid var(--border); white-space: pre-wrap; word-break: break-word; font-size: 0.95rem; }
     
-    /* 🎨 タグリンクエリアの新しいスタイル */
-    .viewer .tag-container {
-      margin-top: 16px; padding-top: 16px;
-      border-top: 1px dashed var(--border);
-      display: flex; flex-wrap: wrap; gap: 8px;
-    }
-    .tag-link {
-      background: var(--tag-bg); color: var(--accent);
-      padding: 6px 12px; border-radius: 16px; font-size: 0.85rem;
-      font-weight: 600; text-decoration: none; cursor: pointer;
-      display: inline-block; transition: background 0.2s;
-    }
-    .tag-link:hover {
-      background: color-mix(in srgb, var(--accent) 15%, var(--tag-bg));
-    }
+    .tag-container { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .tag-link { background: var(--tag-bg); color: var(--accent); padding: 6px 12px; border-radius: 16px; font-size: 0.85rem; font-weight: 600; text-decoration: none; cursor: pointer; }
+    
+    button.action-btn { width: 100%; padding: 10px; font-size: 0.85rem; border: none; border-radius: 8px; color: #fff; cursor: pointer; font-weight: 600; text-align: center; }
+    .btn-accent { background: var(--accent); }
+    .btn-ok { background: var(--ok); margin-top: 6px; }
+    .btn-secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
 
-    .copy-btn { width: auto; padding: 8px 16px; font-size: 0.85rem; margin-bottom: 12px; border: none; border-radius: 6px; background: var(--accent); color: #fff; cursor: pointer; font-weight: 600; }
     .placeholder-text { color: var(--muted); margin: auto; text-align: center; font-size: 0.9rem; }
     .placeholder-text::before { content: "← リストから記事を選択するか、zipファイルをインポートしてください。"; }
 
-    /* スマホ用トグルボタン */
     .mobile-filter-toggle { display: none; width: 100%; padding: 10px; font-weight: 600; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; }
 
-    /* スマホ用レイアウト */
+    /* 📦 パイプラインエクスポート用ポップアップモーダル */
+    .pipeline-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--modal-bg); z-index: 2000; display: none; justify-content: center; align-items: center; padding: 20px; }
+    .pipeline-modal.open { display: flex; }
+    .pipeline-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; width: 100%; max-width: 480px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 14px; }
+    .pipeline-actions { display: flex; gap: 8px; margin-top: 8px; }
+
     @media (max-width: 768px) {
       .wrapper { grid-template-columns: 1fr; height: 100vh; display: flex; flex-direction: column; }
       sidebar { border-right: none; height: 100vh; flex-grow: 1; padding: 12px; gap: 8px; }
@@ -167,22 +113,12 @@
       .filter-section { display: none; flex-direction: column; gap: 8px; }
       .filter-section.open { display: flex; }
       main { display: none; }
-      .placeholder-text { display: none; }
-      .modal-viewer {
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-        background: var(--modal-bg); z-index: 1000;
-        display: none; justify-content: center; align-items: flex-end;
-      }
+      
+      .modal-viewer { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--modal-bg); z-index: 1000; display: none; justify-content: center; align-items: flex-end; }
       .modal-viewer.open { display: flex; }
-      .modal-content {
-        background: var(--card); width: 100%; max-height: 85vh;
-        border-top-left-radius: 20px; border-top-right-radius: 20px;
-        padding: 20px; overflow-y: auto; display: flex; flex-direction: column;
-        box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
-        animation: slideUp 0.25s ease-out;
-      }
+      .modal-content { background: var(--card); width: 100%; max-height: 85vh; border-top-left-radius: 20px; border-top-right-radius: 20px; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 -4px 20px rgba(0,0,0,0.15); animation: slideUp 0.25s ease-out; }
       @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-      .modal-close-btn { align-self: flex-end; background: var(--bg); border: none; padding: 6px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
+      .modal-close-btn { align-self: flex-end; background: var(--bg); border: none; padding: 6px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -206,7 +142,7 @@
           </div>
         </div>
 
-        <div class="card" style="display:flex; flex-direction:column; gap:8px;">
+        <div class="card" style="display:flex; flex-direction:column; gap:6px;">
           <div>
             <label for="searchQuery">フリーワード検索</label>
             <input id="searchQuery" type="text" placeholder="スペース区切りでAND検索" autocomplete="off">
@@ -216,6 +152,29 @@
             <input id="searchTags" type="text" placeholder="タップで登録タグ一覧を表示" autocomplete="off">
             <div id="suggestList" class="suggest-list"></div>
           </div>
+          <div>
+            <label>日付期間検索</label>
+            <div class="date-range">
+              <input id="dateStart" type="date">
+              <span style="font-size:0.8rem; color:var(--muted);">〜</span>
+              <input id="dateEnd" type="date">
+            </div>
+          </div>
+          
+          <div class="row">
+            <div>
+              <label for="formatSelect">形式</label>
+              <select id="formatSelect">
+                <option value="md" selected>Markdown</option>
+                <option value="txt">テキスト</option>
+              </select>
+            </div>
+            <div>
+              <label for="batchSize">1個のZIP上限</label>
+              <input id="batchSize" type="number" min="1" max="500" value="100">
+            </div>
+          </div>
+          <button id="startPipelineBtn" class="action-btn btn-ok">📥 マッチ記事を順次ZIP保存</button>
         </div>
       </div>
 
@@ -229,11 +188,13 @@
 
     <main id="pcMain">
       <div id="viewer" class="viewer" style="display: none;">
-        <h2 id="viewTitle">記事タイトル</h2>
-        <div id="viewMeta" class="meta">日付: --</div>
-        <button id="copyBodyBtn" class="copy-btn">📋 本文を一撃コピー</button>
-        <div id="viewBody" class="body"></div>
-        <div id="viewTags" class="tag-container"></div>
+        <div class="viewer-content">
+          <h2 id="viewTitle">記事タイトル</h2>
+          <div id="viewMeta" class="meta">日付: --</div>
+          <div><button id="copyBodyBtn" class="action-btn btn-accent">📋 本文を一撃コピー</button></div>
+          <div id="viewBody" class="body"></div>
+          <div id="viewTags" class="tag-container"></div>
+        </div>
       </div>
       <div id="viewerPlaceholder" class="placeholder-text"></div>
     </main>
@@ -243,11 +204,26 @@
     <div class="modal-content">
       <button id="modalCloseBtn" class="modal-close-btn">閉じる</button>
       <div class="viewer">
-        <h2 id="modalTitle">記事タイトル</h2>
-        <div id="modalMeta" class="meta">日付: --</div>
-        <button id="modalCopyBtn" class="copy-btn">📋 本文を一撃コピー</button>
-        <div id="modalBody" class="body"></div>
-        <div id="modalTags" class="tag-container"></div>
+        <div class="viewer-content">
+          <h2 id="modalTitle">記事タイトル</h2>
+          <div id="modalMeta" class="meta">日付: --</div>
+          <div><button id="modalCopyBtn" class="action-btn btn-accent">📋 本文を一撃コピー</button></div>
+          <div id="modalBody" class="body"></div>
+          <div id="modalTags" class="tag-container"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="pipelineModal" class="pipeline-modal">
+    <div class="pipeline-box">
+      <h3 style="margin:0; font-size:1.1rem;">📦 順次ZIPエクスポート</h3>
+      <div id="pipelineStatus" style="font-size:0.9rem; color:var(--accent);">準備中...</div>
+      <progress id="pipelineProgress" max="100" value="0"></progress>
+      <div class="pipeline-actions">
+        <button id="pipeDownloadBtn" class="action-btn btn-accent" style="flex:1;">ダウンロード</button>
+        <button id="pipeContinueBtn" class="action-btn btn-ok" style="flex:1;" disabled>次のバッチへ</button>
+        <button id="pipeCancelBtn" class="action-btn btn-secondary">中止</button>
       </div>
     </div>
   </div>
@@ -260,15 +236,27 @@
     const STORE_NAME = "articles";
     let db = null;
     let allArticles = [];
+    let currentFiltered = [];
     let dragDepth = 0;
     let currentSortOrder = "desc";
     let tagCounts = {};
+
+    // パイプライン制御用トークン
+    let pipelineToken = 0;
+    let pipePendingBlob = null;
+    let pipePendingFilename = "";
+    let pipeDownloadUrl = "";
 
     const els = {
       dropzone: document.getElementById("dropzone"),
       zipInput: document.getElementById("zipInput"),
       searchQuery: document.getElementById("searchQuery"),
       searchTags: document.getElementById("searchTags"),
+      dateStart: document.getElementById("dateStart"),
+      dateEnd: document.getElementById("dateEnd"),
+      formatSelect: document.getElementById("formatSelect"),
+      batchSize: document.getElementById("batchSize"),
+      startPipelineBtn: document.getElementById("startPipelineBtn"),
       suggestList: document.getElementById("suggestList"),
       sortToggleBtn: document.getElementById("sortToggleBtn"),
       articleList: document.getElementById("articleList"),
@@ -279,7 +267,7 @@
       viewTitle: document.getElementById("viewTitle"),
       viewMeta: document.getElementById("viewMeta"),
       viewBody: document.getElementById("viewBody"),
-      viewTags: document.getElementById("viewTags"), // PC用タグ
+      viewTags: document.getElementById("viewTags"),
       copyBodyBtn: document.getElementById("copyBodyBtn"),
       mobileToggleBtn: document.getElementById("mobileToggleBtn"),
       filterSection: document.getElementById("filterSection"),
@@ -288,52 +276,39 @@
       modalTitle: document.getElementById("modalTitle"),
       modalMeta: document.getElementById("modalMeta"),
       modalBody: document.getElementById("modalBody"),
-      modalTags: document.getElementById("modalTags"), // スマホ用タグ
-      modalCopyBtn: document.getElementById("modalCopyBtn")
+      modalTags: document.getElementById("modalTags"),
+      modalCopyBtn: document.getElementById("modalCopyBtn"),
+      // 新追加：パイプライン用
+      pipelineModal: document.getElementById("pipelineModal"),
+      pipelineStatus: document.getElementById("pipelineStatus"),
+      pipelineProgress: document.getElementById("pipelineProgress"),
+      pipeDownloadBtn: document.getElementById("pipeDownloadBtn"),
+      pipeContinueBtn: document.getElementById("pipeContinueBtn"),
+      pipeCancelBtn: document.getElementById("pipeCancelBtn")
     };
 
-    // 1. IndexedDB初期化
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      e.target.result.createObjectStore(STORE_NAME, { keyPath: "title" });
-    };
-    request.onsuccess = (e) => {
-      db = e.target.result;
-      els.status.textContent = "データベース準備完了";
-      loadArticlesFromDB();
-    };
+    request.onupgradeneeded = (e) => { e.target.result.createObjectStore(STORE_NAME, { keyPath: "title" }); };
+    request.onsuccess = (e) => { db = e.target.result; els.status.textContent = "データベース準備完了"; loadArticlesFromDB(); };
 
     function loadArticlesFromDB() {
       const transaction = db.transaction(STORE_NAME, "readonly");
       const getAllRequest = transaction.objectStore(STORE_NAME).getAll();
-      getAllRequest.onsuccess = () => {
-        allArticles = getAllRequest.result;
-        calculateTagCounts();
-        renderList();
-      };
+      getAllRequest.onsuccess = () => { allArticles = getAllRequest.result; calculateTagCounts(); renderList(); };
     }
 
     function calculateTagCounts() {
       tagCounts = {};
-      allArticles.forEach(art => {
-        art.tags.forEach(tag => {
-          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-        });
-      });
+      allArticles.forEach(art => { art.tags.forEach(tag => { tagCounts[tag] = (tagCounts[tag] || 0) + 1; }); });
     }
 
-    // 2. ZIPファイルのインポート処理
     async function processZip(file) {
       if (!file) return;
-      els.status.className = "status";
-      els.status.textContent = "zip展開中...";
-
+      els.status.className = "status"; els.status.textContent = "zip展開中...";
       try {
         const zip = await JSZip.loadAsync(file);
         const xmlEntries = Object.keys(zip.files).filter(name => !zip.files[name].dir && /\.xml$/i.test(name));
-        
         if (xmlEntries.length === 0) throw new Error("zip内にXMLが見つかりません。");
-
         els.status.textContent = "データ解析中...";
         const parsedArticles = [];
 
@@ -346,7 +321,6 @@
             const item = items[i];
             const postType = item.getElementsByTagName("wp:post_type")[0]?.textContent?.trim();
             const status = item.getElementsByTagName("wp:status")[0]?.textContent?.trim();
-            
             if (postType !== "post" && postType !== "page") continue;
             if (status && status !== "publish") continue;
 
@@ -356,13 +330,8 @@
             const body = htmlToText(rawBody);
             if (!body) continue;
 
-            const tagRegex = /#([^\s#]+)/g;
-            const tags = [];
-            let match;
-            while ((match = tagRegex.exec(body)) !== null) {
-              if (!tags.includes(match[1])) tags.push(match[1]);
-            }
-
+            const tagRegex = /#([^\s#]+)/g; const tags = []; let match;
+            while ((match = tagRegex.exec(body)) !== null) { if (!tags.includes(match[1])) tags.push(match[1]); }
             parsedArticles.push({ title, date, body, tags });
           }
         }
@@ -371,162 +340,252 @@
         const transaction = db.transaction(STORE_NAME, "readwrite");
         const store = transaction.objectStore(STORE_NAME);
         let importCount = 0;
-
-        for (const art of parsedArticles) {
-          store.put(art);
-          importCount++;
-        }
-
+        for (const art of parsedArticles) { store.put(art); importCount++; }
         transaction.oncomplete = () => {
-          els.status.className = "status ok";
-          els.status.textContent = `${importCount}件の記事を同期しました`;
-          loadArticlesFromDB();
-          if(window.innerWidth <= 768) els.filterSection.classList.remove("open");
+          els.status.className = "status ok"; els.status.textContent = `${importCount}件の記事を同期しました`;
+          loadArticlesFromDB(); if(window.innerWidth <= 768) els.filterSection.classList.remove("open");
         };
-
-      } catch (err) {
-        els.status.className = "status";
-        els.status.textContent = "エラー: " + err.message;
-      }
+      } catch (err) { els.status.className = "status"; els.status.textContent = "エラー: " + err.message; }
     }
 
-    function splitKeywords(inputStr) {
-      return inputStr.replace(/ /g, " ").toLowerCase().split(/\s+/).filter(w => w);
-    }
+    function splitKeywords(inputStr) { return inputStr.replace(/ /g, " ").toLowerCase().split(/\s+/).filter(w => w); }
 
-    // 3. リスト描画
     function renderList() {
       const queryWords = splitKeywords(els.searchQuery.value);
       const tagWords = splitKeywords(els.searchTags.value);
+      const startVal = els.dateStart.value;
+      const endVal = els.dateEnd.value;
 
-      let filtered = allArticles.filter(art => {
+      currentFiltered = allArticles.filter(art => {
         const bodyAndTitle = (art.title + " " + art.body).toLowerCase();
         const matchQuery = queryWords.every(word => bodyAndTitle.includes(word));
-
         const artTagsLower = art.tags.map(t => t.toLowerCase());
         const matchTags = tagWords.every(word => artTagsLower.includes(word.replace("#", "").toLowerCase()));
+        
+        let matchDate = true;
+        if (art.date !== "unknown") {
+          const artDateStr = art.date.split(" ")[0];
+          if (startVal && artDateStr < startVal) matchDate = false;
+          if (endVal && artDateStr > endVal) matchDate = false;
+        } else if (startVal || endVal) { matchDate = false; }
 
-        return matchQuery && matchTags;
+        return matchQuery && matchTags && matchDate;
       });
 
-      filtered.sort((a, b) => {
-        return currentSortOrder === "desc" 
-          ? new Date(b.date) - new Date(a.date) 
-          : new Date(a.date) - new Date(b.date);
+      currentFiltered.sort((a, b) => {
+        return currentSortOrder === "desc" ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date);
       });
 
-      els.matchCount.textContent = `該当: ${filtered.length}件`;
+      els.matchCount.textContent = `該当: ${currentFiltered.length}件`;
       els.articleList.innerHTML = "";
-
-      filtered.forEach(art => {
+      currentFiltered.forEach(art => {
         const item = document.createElement("div");
         item.className = "article-item";
         item.innerHTML = `<span class="date">${art.date}</span><strong>${art.title}</strong>`;
-        
         item.addEventListener("click", () => {
           document.querySelectorAll(".article-item").forEach(el => el.classList.remove("active"));
-          item.classList.add("active");
-          showArticle(art);
+          item.classList.add("active"); showArticle(art);
         });
         els.articleList.appendChild(item);
       });
     }
 
-    // 4. タグサジェスト
+    // 📦 前回のツールから移植：バッチ処理の核となる非同期同調システム
+    function sanitizeFilename(name) {
+      return name.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, " ").trim();
+    }
+
+    function formatArticle(item, fmt) {
+      if (fmt === "md") return `# ${item.title}\n\n- date: ${item.date || "unknown"}\n\n${item.body}\n`;
+      return `${item.title}\ndate: ${item.date || "unknown"}\n\n${item.body}\n`;
+    }
+
+    function revokePipeUrl() { if (pipeDownloadUrl) { URL.revokeObjectURL(pipeDownloadUrl); pipeDownloadUrl = ""; } }
+
+    function triggerPipeDownload(blob, filename) {
+      revokePipeUrl();
+      pipeDownloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = pipeDownloadUrl; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    // ダウンロードボタンと「次のバッチへ」のポチポチ待機同期システム
+    async function waitForPipeDownloadOrContinue(activeToken) {
+      return new Promise((resolve, reject) => {
+        const cleanup = () => {
+          els.pipeDownloadBtn.removeEventListener("click", onDownloadOnce);
+          els.pipeContinueBtn.removeEventListener("click", onContinueOnce);
+          els.pipeContinueBtn.disabled = true;
+        };
+        const onDownloadOnce = () => {
+          if (activeToken !== pipelineToken) { cleanup(); reject(new Error("中止")); return; }
+          if (!pipePendingBlob) return;
+          triggerPipeDownload(pipePendingBlob, pipePendingFilename);
+          pipePendingBlob = null; pipePendingFilename = "";
+          els.pipeDownloadBtn.disabled = true;
+          els.pipeContinueBtn.disabled = false;
+          els.pipelineStatus.textContent = "ダウンロード完了。下のボタンで次へ進んでください。";
+        };
+        const onContinueOnce = () => {
+          if (activeToken !== pipelineToken) { cleanup(); reject(new Error("中止")); return; }
+          if (pipePendingBlob) return;
+          cleanup(); resolve();
+        };
+        els.pipeContinueBtn.disabled = true;
+        els.pipeDownloadBtn.disabled = false;
+        els.pipeDownloadBtn.addEventListener("click", onDownloadOnce);
+        els.pipeContinueBtn.addEventListener("click", onContinueOnce);
+      });
+    }
+
+    // 📥 パイプラインエクスポート実行コアロジック
+    els.startPipelineBtn.addEventListener("click", async () => {
+      if (currentFiltered.length === 0) { alert("出力対象の記事がありません。"); return; }
+      
+      const fmt = els.formatSelect.value;
+      const batchSize = Math.max(1, Math.min(500, parseInt(els.batchSize.value, 10) || 100));
+      const token = ++pipelineToken;
+
+      revokePipeUrl();
+      pipePendingBlob = null; pipePendingFilename = "";
+      els.pipelineProgress.value = 0;
+      els.pipelineStatus.textContent = "ZIPバッチ初期化中...";
+      els.pipelineModal.classList.add("open");
+
+      try {
+        let articleIndex = 1;
+        let batchIndex = 1;
+        let batchArticles = [];
+
+        for (let i = 0; i < currentFiltered.length; i++) {
+          if (token !== pipelineToken) throw new Error("中止");
+          
+          const art = currentFiltered[i];
+          const ext = fmt === "md" ? ".md" : ".txt";
+          const safeTitle = sanitizeFilename(art.title);
+          const filename = `${String(articleIndex).padStart(3, "0")}_${safeTitle}${ext}`;
+
+          batchArticles.push({ name: filename, content: formatArticle(art, fmt) });
+          articleIndex++;
+
+          // バッチ上限に達した、または最後の記事の場合にZIPを組み上げる
+          if (batchArticles.length >= batchSize || i === currentFiltered.length - 1) {
+            const startNo = articleIndex - batchArticles.length;
+            const endNo = articleIndex - 1;
+            const zipName = `note_articles_${fmt}_${String(startNo).padStart(3, "0")}-${String(endNo).padStart(3, "0")}.zip`;
+
+            els.pipelineStatus.textContent = `バッチ ${batchIndex} 生成中... (${batchArticles.length}件)`;
+            
+            const zip = new JSZip();
+            batchArticles.forEach(b => zip.file(b.name, b.content));
+            const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 5 } });
+            
+            if (token !== pipelineToken) throw new Error("中止");
+
+            pipePendingBlob = blob;
+            pipePendingFilename = zipName;
+            
+            els.pipelineProgress.value = Math.round(((i + 1) / currentFiltered.length) * 100);
+            els.pipelineStatus.textContent = `バッチ ${batchIndex} (${startNo}〜${endNo}) の準備完了。`;
+
+            // ポップアップでのユーザー操作を同期待機
+            await waitForPipeDownloadOrContinue(token);
+
+            batchArticles = [];
+            batchIndex++;
+          }
+        }
+
+        els.pipelineStatus.textContent = `🎉 全てのエクスポートが完了しました！計 ${articleIndex - 1} 記事`;
+        els.pipeDownloadBtn.disabled = true;
+        els.pipeContinueBtn.textContent = "閉じる";
+        els.pipeContinueBtn.disabled = false;
+        
+        const closeOnce = () => {
+          els.pipelineModal.classList.remove("open");
+          els.pipeContinueBtn.textContent = "次のバッチへ";
+          els.pipeContinueBtn.removeEventListener("click", closeOnce);
+        };
+        els.pipeContinueBtn.addEventListener("click", closeOnce);
+
+      } catch (err) {
+        els.pipelineModal.classList.remove("open");
+        if (err.message !== "中止") alert("エラーが発生しました: " + err.message);
+      }
+    });
+
+    els.pipeCancelBtn.addEventListener("click", () => {
+      pipelineToken++;
+      revokePipeUrl();
+      els.pipelineModal.classList.remove("open");
+    });
+
+
+    // --- 以下、既存の強力なUIコントロール系ロジック（そのまま維持） ---
     function showTagSuggestions() {
       const inputWord = els.searchTags.value.replace("#", "").toLowerCase().trim();
       let sortedTags = Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]);
-
-      if (inputWord) {
-        sortedTags = sortedTags.filter(tag => tag.toLowerCase().includes(inputWord));
-      }
-
-      if (sortedTags.length === 0) {
-        els.suggestList.style.display = "none";
-        return;
-      }
+      if (inputWord) sortedTags = sortedTags.filter(tag => tag.toLowerCase().includes(inputWord));
+      if (sortedTags.length === 0) { els.suggestList.style.display = "none"; return; }
 
       els.suggestList.innerHTML = "";
       sortedTags.slice(0, 10).forEach(tag => {
-        const div = document.createElement("div");
-        div.className = "suggest-item";
+        const div = document.createElement("div"); div.className = "suggest-item";
         div.innerHTML = `<span>#${tag}</span><span class="suggest-count">${tagCounts[tag]}件</span>`;
-        
-        div.addEventListener("mousedown", (e) => {
-          e.preventDefault();
-          executeTagSearch(tag);
-        });
+        div.addEventListener("mousedown", (e) => { e.preventDefault(); executeTagSearch(tag); });
         els.suggestList.appendChild(div);
       });
-
       els.suggestList.style.display = "block";
     }
 
-    // 🎨 タグ一発検索ロジックの共通化
     function executeTagSearch(tag) {
-      els.searchTags.value = tag;
-      els.suggestList.style.display = "none";
-      renderList();
-      
-      // スマホの場合は、検索窓アコーディオンを自動で閉じてリストを見やすくする
+      els.searchTags.value = tag; els.suggestList.style.display = "none"; renderList();
       if (window.innerWidth <= 768) {
         els.filterSection.classList.remove("open");
         els.mobileToggleBtn.textContent = "🔍 検索・インポート条件を開く";
-        els.mobileModal.classList.remove("open"); // スマホのポップアップも閉じる
+        els.mobileModal.classList.remove("open");
       }
     }
 
     els.searchTags.addEventListener("focus", showTagSuggestions);
     els.searchTags.addEventListener("input", showTagSuggestions);
     els.searchTags.addEventListener("blur", () => { els.suggestList.style.display = "none"; });
+    els.dateStart.addEventListener("change", renderList);
+    els.dateEnd.addEventListener("change", renderList);
 
-    // 5. 記事の表示制御（タグ生成ロジック追加）
     let activeArticle = null;
     function showArticle(art) {
       activeArticle = art;
-      
-      const targetTitle = window.innerWidth <= 768 ? els.modalTitle : els.viewTitle;
-      const targetMeta = window.innerWidth <= 768 ? els.modalMeta : els.viewMeta;
-      const targetBody = window.innerWidth <= 768 ? els.modalBody : els.viewBody;
-      const targetTags = window.innerWidth <= 768 ? els.modalTags : els.viewTags;
+      const isMobile = window.innerWidth <= 768;
+      const targetTitle = isMobile ? els.modalTitle : els.viewTitle;
+      const targetMeta = isMobile ? els.modalMeta : els.viewMeta;
+      const targetBody = isMobile ? els.modalBody : els.viewBody;
+      const targetTags = isMobile ? els.modalTags : els.viewTags;
 
-      // 基礎テキスト流し込み
       targetTitle.textContent = art.title;
       targetMeta.textContent = `投稿日: ${art.date}`;
       targetBody.textContent = art.body;
 
-      // 🎨 記事の下にタグリンクを動的生成
       targetTags.innerHTML = "";
       if (art.tags.length > 0) {
         art.tags.forEach(tag => {
-          const a = document.createElement("a");
-          a.className = "tag-link";
-          a.textContent = `#${tag}`;
-          a.addEventListener("click", (e) => {
-            e.preventDefault();
-            executeTagSearch(tag);
-          });
+          const a = document.createElement("a"); a.className = "tag-link"; a.textContent = `#${tag}`;
+          a.addEventListener("click", (e) => { e.preventDefault(); executeTagSearch(tag); });
           targetTags.appendChild(a);
         });
         targetTags.style.display = "flex";
-      } else {
-        targetTags.style.display = "none";
-      }
+      } else { targetTags.style.display = "none"; }
 
-      if (window.innerWidth <= 768) {
-        els.mobileModal.classList.add("open");
-      } else {
-        els.viewerPlaceholder.style.display = "none";
-        els.viewer.style.display = "block";
-      }
+      if (isMobile) { els.mobileModal.classList.add("open"); } 
+      else { els.viewerPlaceholder.style.display = "none"; els.viewer.style.display = "block"; }
     }
 
     function handleCopy() {
       if (!activeArticle) return;
       navigator.clipboard.writeText(activeArticle.body).then(() => {
         const targetBtn = window.innerWidth <= 768 ? els.modalCopyBtn : els.copyBodyBtn;
-        const originalText = targetBtn.textContent;
-        targetBtn.textContent = "📋 コピー完了！";
+        const originalText = targetBtn.textContent; targetBtn.textContent = "📋 コピー完了！";
         setTimeout(() => targetBtn.textContent = originalText, 1500);
       });
     }
@@ -534,28 +593,36 @@
     els.modalCopyBtn.addEventListener("click", handleCopy);
 
     els.modalCloseBtn.addEventListener("click", () => els.mobileModal.classList.remove("open"));
-    els.mobileModal.addEventListener("click", (e) => {
-      if (e.target === els.mobileModal) els.mobileModal.classList.remove("open");
-    });
+    els.mobileModal.addEventListener("click", (e) => { if (e.target === els.mobileModal) els.mobileModal.classList.remove("open"); });
 
     els.mobileToggleBtn.addEventListener("click", () => {
       els.filterSection.classList.toggle("open");
-      if(els.filterSection.classList.contains("open")) {
-        els.mobileToggleBtn.textContent = "▲ 検索・インポート条件を閉じる";
-      } else {
-        els.mobileToggleBtn.textContent = "🔍 検索・インポート条件を開く";
-      }
+      els.mobileToggleBtn.textContent = els.filterSection.classList.contains("open") ? "▲ 検索・インポート条件を閉じる" : "🔍 検索・インポート条件を開く";
     });
 
     els.sortToggleBtn.addEventListener("click", () => {
-      if (currentSortOrder === "desc") {
-        currentSortOrder = "asc";
-        els.sortToggleBtn.textContent = "▲ 古い順";
-      } else {
-        currentSortOrder = "desc";
-        els.sortToggleBtn.textContent = "▼ 新しい順";
-      }
+      currentSortOrder = (currentSortOrder === "desc") ? "asc" : "desc";
+      els.sortToggleBtn.textContent = (currentSortOrder === "desc") ? "▼ 新しい順" : "▲ 古い順";
       renderList();
+    });
+
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 768) {
+        if (els.mobileModal.classList.contains("open")) els.mobileModal.classList.remove("open");
+        if (activeArticle) {
+          els.viewerPlaceholder.style.display = "none"; els.viewer.style.display = "block";
+          els.viewTitle.textContent = activeArticle.title; els.viewMeta.textContent = `投稿日: ${activeArticle.date}`; els.viewBody.textContent = activeArticle.body;
+          els.viewTags.innerHTML = "";
+          if (activeArticle.tags.length > 0) {
+            activeArticle.tags.forEach(tag => {
+              const a = document.createElement("a"); a.className = "tag-link"; a.textContent = `#${tag}`;
+              a.addEventListener("click", (e) => { e.preventDefault(); executeTagSearch(tag); });
+              els.viewTags.appendChild(a);
+            });
+            els.viewTags.style.display = "flex";
+          } else { els.viewTags.style.display = "none"; }
+        }
+      }
     });
 
     els.dropzone.addEventListener("click", () => els.zipInput.click());
@@ -578,9 +645,7 @@
       text = text.replace(/<script[\s\S]*?<\/script>/gi, "");
       text = text.replace(/<style[\s\S]*?<\/style>/gi, "");
       text = text.replace(/<[^>]+>/g, "");
-      const ta = document.createElement("textarea");
-      ta.innerHTML = text;
-      text = ta.value;
+      const ta = document.createElement("textarea"); ta.innerHTML = text; text = ta.value;
       text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n{3,}/g, "\n\n");
       return text.trim();
     }
