@@ -48,14 +48,19 @@
     label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.8rem; color: var(--muted); }
     
     .input-container { position: relative; }
-    input[type="text"], input[type="date"] {
+    
+    /* 🛠️ 修正：textとdateのスタイルを完全分離。dateはブラウザ依存のバグを防ぐ専用設計 */
+    input[type="text"] {
       width: 100%; font: inherit; padding: 10px; border: 1px solid var(--border); border-radius: 8px;
       background: var(--bg); color: var(--text);
     }
+    input[type="date"] {
+      width: 100%; font: inherit; height: 42px; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--bg); color: var(--text); display: block;
+    }
     
-    /* 🛠️ 修正：はみ出しを物理的に0にする、スマートな縦並び構造への変更 */
-    .date-range { display: flex; flex-direction: column; gap: 6px; }
-    .date-separator { text-align: center; font-size: 0.75rem; color: var(--muted); margin: 1px 0; font-weight: bold; }
+    .date-range { display: flex; flex-direction: column; gap: 4px; }
+    .date-separator { text-align: center; font-size: 0.75rem; color: var(--muted); margin: 2px 0; font-weight: bold; }
     
     .suggest-list {
       position: absolute; top: 100%; left: 0; right: 0; background: var(--card); border: 1px solid var(--border);
@@ -253,3 +258,406 @@
       zipInput: document.getElementById("zipInput"),
       searchQuery: document.getElementById("searchQuery"),
       searchTags: document.getElementById("searchTags"),
+      dateStart: document.getElementById("dateStart"),
+      dateEnd: document.getElementById("dateEnd"),
+      startPipelineBtn: document.getElementById("startPipelineBtn"),
+      clearDbBtn: document.getElementById("clearDbBtn"),
+      suggestList: document.getElementById("suggestList"),
+      sortToggleBtn: document.getElementById("sortToggleBtn"),
+      articleList: document.getElementById("articleList"),
+      matchCount: document.getElementById("matchCount"),
+      status: document.getElementById("status"),
+      viewer: document.getElementById("viewer"),
+      viewerPlaceholder: document.getElementById("viewerPlaceholder"),
+      viewTitle: document.getElementById("viewTitle"),
+      viewMeta: document.getElementById("viewMeta"),
+      viewBody: document.getElementById("viewBody"),
+      viewTags: document.getElementById("viewTags"),
+      copyBodyBtn: document.getElementById("copyBodyBtn"),
+      mobileToggleBtn: document.getElementById("mobileToggleBtn"),
+      filterSection: document.getElementById("filterSection"),
+      mobileModal: document.getElementById("mobileModal"),
+      modalCloseBtn: document.getElementById("modalCloseBtn"),
+      modalTitle: document.getElementById("modalTitle"),
+      modalMeta: document.getElementById("modalMeta"),
+      modalBody: document.getElementById("modalBody"),
+      modalTags: document.getElementById("modalTags"),
+      modalCopyBtn: document.getElementById("modalCopyBtn"),
+      pipelineModal: document.getElementById("pipelineModal"),
+      pipelineStatus: document.getElementById("pipelineStatus"),
+      pipelineProgress: document.getElementById("pipelineProgress"),
+      pipeDownloadBtn: document.getElementById("pipeDownloadBtn"),
+      pipeContinueBtn: document.getElementById("pipeContinueBtn"),
+      pipeCancelBtn: document.getElementById("pipeCancelBtn")
+    };
+
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = (e) => { e.target.result.createObjectStore(STORE_NAME, { keyPath: "title" }); };
+    request.onsuccess = (e) => { db = e.target.result; els.status.textContent = "データベース準備完了"; loadArticlesFromDB(); };
+
+    function loadArticlesFromDB() {
+      const transaction = db.transaction(STORE_NAME, "readonly");
+      const getAllRequest = transaction.objectStore(STORE_NAME).getAll();
+      getAllRequest.onsuccess = () => { allArticles = getAllRequest.result; calculateTagCounts(); renderList(); };
+    }
+
+    function calculateTagCounts() {
+      tagCounts = {};
+      allArticles.forEach(art => { (art.tags || []).forEach(tag => { tagCounts[tag] = (tagCounts[tag] || 0) + 1; }); });
+    }
+
+    els.clearDbBtn.addEventListener("click", () => {
+      if (!confirm("データベース内のすべての記事データとタグ情報を完全に消去します。よろしいですか？")) return;
+      if (db) db.close();
+      const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
+      deleteRequest.onsuccess = () => {
+        alert("データベースを完全に初期化しました。最新のパーステストを行うために再読み込みします。");
+        location.reload();
+      };
+      deleteRequest.onerror = () => { alert("DBの削除に失敗しました。ブラウザのタブを一度閉じて試してください。"); };
+    });
+
+    async function processZip(file) {
+      if (!file) return;
+      els.status.className = "status"; els.status.textContent = "zip展開中...";
+      try {
+        const zip = await JSZip.loadAsync(file);
+        const xmlEntries = Object.keys(zip.files).filter(name => !zip.files[name].dir && /\.xml$/i.test(name));
+        if (xmlEntries.length === 0) throw new Error("zip内にXMLが見つかりません。");
+        els.status.textContent = "データ解析中...";
+        const parsedArticles = [];
+
+        for (const path of xmlEntries) {
+          const xmlText = await zip.files[path].async("string");
+          const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+          const items = doc.getElementsByTagName("item");
+
+          for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const postType = item.getElementsByTagName("wp:post_type")[0]?.textContent?.trim();
+            const status = item.getElementsByTagName("wp:status")[0]?.textContent?.trim();
+            if (postType !== "post" && postType !== "page") continue;
+            if (status && status !== "publish") continue;
+
+            const title = item.getElementsByTagName("title")[0]?.textContent?.trim() || "untitled";
+            const date = item.getElementsByTagName("wp:post_date")[0]?.textContent?.trim() || "unknown";
+            const rawBody = item.getElementsByTagName("content:encoded")[0]?.textContent || "";
+            const body = htmlToText(rawBody);
+            if (!body) continue;
+
+            const tagRegex = /(?:^|\s)#([A-Za-z0-9_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF\-]+)/g;
+            const tags = [];
+            let match;
+            while ((match = tagRegex.exec(body)) !== null) {
+              const cleanedTag = match[1].trim();
+              if (/^[0-9a-fA-F]{3,6}$/.test(cleanedTag)) continue;
+              if (["each", "if", "unless", "with"].includes(cleanedTag.toLowerCase())) continue;
+              if (!tags.includes(cleanedTag)) tags.push(cleanedTag);
+            }
+
+            parsedArticles.push({ title, date, body, tags });
+          }
+        }
+
+        els.status.textContent = "DBへ保存中...";
+        const transaction = db.transaction(STORE_NAME, "readwrite");
+        const store = transaction.objectStore(STORE_NAME);
+        let importCount = 0;
+        for (const art of parsedArticles) { store.put(art); importCount++; }
+        transaction.oncomplete = () => {
+          els.status.className = "status ok"; els.status.textContent = `${importCount}件の記事を同期しました`;
+          loadArticlesFromDB(); if(window.innerWidth <= 768) els.filterSection.classList.remove("open");
+        };
+      } catch (err) { els.status.className = "status"; els.status.textContent = "エラー: " + err.message; }
+    }
+
+    function splitKeywords(inputStr) { return inputStr.replace(/ /g, " ").toLowerCase().split(/\s+/).filter(w => w); }
+
+    function renderList() {
+      const queryWords = splitKeywords(els.searchQuery.value);
+      const tagWords = splitKeywords(els.searchTags.value);
+      const startVal = els.dateStart.value;
+      const endVal = els.dateEnd.value;
+
+      currentFiltered = allArticles.filter(art => {
+        const bodyAndTitle = (art.title + " " + art.body).toLowerCase();
+        const matchQuery = queryWords.every(word => bodyAndTitle.includes(word));
+        const artTagsLower = (art.tags || []).map(t => t.toLowerCase());
+        const matchTags = tagWords.every(word => artTagsLower.includes(word.replace("#", "").toLowerCase()));
+        
+        let matchDate = true;
+        if (art.date !== "unknown") {
+          const artDateStr = art.date.split(" ")[0];
+          if (startVal && artDateStr < startVal) matchDate = false;
+          if (endVal && artDateStr > endVal) matchDate = false;
+        } else if (startVal || endVal) { matchDate = false; }
+
+        return matchQuery && matchTags && matchDate;
+      });
+
+      currentFiltered.sort((a, b) => {
+        return currentSortOrder === "desc" ? new Date(b.date) - new Date(a.date) : new Date(a.date) - new Date(b.date);
+      });
+
+      els.matchCount.textContent = `該当: ${currentFiltered.length}件`;
+      els.articleList.innerHTML = "";
+      currentFiltered.forEach(art => {
+        const item = document.createElement("div");
+        item.className = "article-item";
+        item.innerHTML = `<span class="date">${art.date}</span><strong>${art.title}</strong>`;
+        item.addEventListener("click", () => {
+          document.querySelectorAll(".article-item").forEach(el => el.classList.remove("active"));
+          item.classList.add("active"); showArticle(art);
+        });
+        els.articleList.appendChild(item);
+      });
+    }
+
+    function sanitizeFilename(name) { return name.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, " ").trim(); }
+
+    function formatArticle(item) {
+      return `${item.title}\ndate: ${item.date || "unknown"}\n\n${item.body}\n`;
+    }
+
+    function revokePipeUrl() { if (pipeDownloadUrl) { URL.revokeObjectURL(pipeDownloadUrl); pipeDownloadUrl = ""; } }
+
+    function triggerPipeDownload(blob, filename) {
+      revokePipeUrl();
+      pipeDownloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = pipeDownloadUrl; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+    }
+
+    async function waitForPipeDownloadOrContinue(activeToken) {
+      return new Promise((resolve, reject) => {
+        const cleanup = () => {
+          els.pipeDownloadBtn.removeEventListener("click", onDownloadOnce);
+          els.pipeContinueBtn.removeEventListener("click", onContinueOnce);
+          els.pipeContinueBtn.disabled = true;
+        };
+        const onDownloadOnce = () => {
+          if (activeToken !== pipelineToken) { cleanup(); reject(new Error("中止")); return; }
+          if (!pipePendingBlob) return;
+          triggerPipeDownload(pipePendingBlob, pipePendingFilename);
+          pipePendingBlob = null; pipePendingFilename = "";
+          els.pipeDownloadBtn.disabled = true;
+          els.pipeContinueBtn.disabled = false;
+          els.pipelineStatus.textContent = "ダウンロード完了。下のボタンで次へ進んでください。";
+        };
+        const onContinueOnce = () => {
+          if (activeToken !== pipelineToken) { cleanup(); reject(new Error("中止")); return; }
+          if (pipePendingBlob) return;
+          cleanup(); resolve();
+        };
+        els.pipeContinueBtn.disabled = true;
+        els.pipeDownloadBtn.disabled = false;
+        els.pipeDownloadBtn.addEventListener("click", onDownloadOnce);
+        els.pipeContinueBtn.addEventListener("click", onContinueOnce);
+      });
+    }
+
+    els.startPipelineBtn.addEventListener("click", async () => {
+      if (currentFiltered.length === 0) { alert("出力対象の記事がありません。"); return; }
+      
+      const fmt = "txt";
+      const batchSize = 200;
+      const token = ++pipelineToken;
+
+      revokePipeUrl();
+      pipePendingBlob = null; pipePendingFilename = "";
+      els.pipelineProgress.value = 0;
+      els.pipelineStatus.textContent = "ZIPバッチ初期化中...";
+      els.pipelineModal.classList.add("open");
+
+      try {
+        let articleIndex = 1;
+        let batchIndex = 1;
+        let batchArticles = [];
+
+        for (let i = 0; i < currentFiltered.length; i++) {
+          if (token !== pipelineToken) throw new Error("中止");
+          
+          const art = currentFiltered[i];
+          const ext = ".txt";
+          const safeTitle = sanitizeFilename(art.title);
+          const filename = `${String(articleIndex).padStart(3, "0")}_${safeTitle}${ext}`;
+
+          batchArticles.push({ name: filename, content: formatArticle(art) });
+          articleIndex++;
+
+          if (batchArticles.length >= batchSize || i === currentFiltered.length - 1) {
+            const startNo = articleIndex - batchArticles.length;
+            const endNo = articleIndex - 1;
+            const zipName = `note_articles_${fmt}_${String(startNo).padStart(3, "0")}-${String(endNo).padStart(3, "0")}.zip`;
+
+            els.pipelineStatus.textContent = `バッチ ${batchIndex} 生成中... (${batchArticles.length}件)`;
+            
+            const zip = new JSZip();
+            batchArticles.forEach(b => zip.file(b.name, b.content));
+            const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 5 } });
+            
+            if (token !== pipelineToken) throw new Error("中止");
+
+            pipePendingBlob = blob;
+            pipePendingFilename = zipName;
+            
+            els.pipelineProgress.value = Math.round(((i + 1) / currentFiltered.length) * 100);
+            els.pipelineStatus.textContent = `バッチ ${batchIndex} (${startNo}〜${endNo}) の準備完了。`;
+
+            await waitForPipeDownloadOrContinue(token);
+
+            batchArticles = [];
+            batchIndex++;
+          }
+        }
+
+        els.pipelineStatus.textContent = `🎉 全てのエクスポートが完了しました！計 ${articleIndex - 1} 記事`;
+        els.pipeDownloadBtn.disabled = true;
+        els.pipeContinueBtn.textContent = "閉じる";
+        els.pipeContinueBtn.disabled = false;
+        
+        const closeOnce = () => {
+          els.pipelineModal.classList.remove("open");
+          els.pipeContinueBtn.textContent = "次のバッチへ";
+          els.pipeContinueBtn.removeEventListener("click", closeOnce);
+        };
+        els.pipeContinueBtn.addEventListener("click", closeOnce);
+
+      } catch (err) {
+        els.pipelineModal.classList.remove("open");
+        if (err.message !== "中止") alert("エラーが発生しました: " + err.message);
+      }
+    });
+
+    els.pipeCancelBtn.addEventListener("click", () => { pipelineToken++; revokePipeUrl(); els.pipelineModal.classList.remove("open"); });
+
+    function showTagSuggestions() {
+      const inputWord = els.searchTags.value.replace("#", "").toLowerCase().trim();
+      let sortedTags = Object.keys(tagCounts).sort((a, b) => tagCounts[b] - tagCounts[a]);
+      if (inputWord) sortedTags = sortedTags.filter(tag => tag.toLowerCase().includes(inputWord));
+      if (sortedTags.length === 0) { els.suggestList.style.display = "none"; return; }
+
+      els.suggestList.innerHTML = "";
+      sortedTags.slice(0, 10).forEach(tag => {
+        const div = document.createElement("div"); div.className = "suggest-item";
+        div.innerHTML = `<span>#${tag}</span><span class="suggest-count">${tagCounts[tag]}件</span>`;
+        div.addEventListener("mousedown", (e) => { e.preventDefault(); executeTagSearch(tag); });
+        els.suggestList.appendChild(div);
+      });
+      els.suggestList.style.display = "block";
+    }
+
+    function executeTagSearch(tag) {
+      els.searchTags.value = tag; els.suggestList.style.display = "none"; renderList();
+      if (window.innerWidth <= 768) {
+        els.filterSection.classList.remove("open");
+        els.mobileToggleBtn.textContent = "🔍 検索・インポート条件を開く";
+        els.mobileModal.classList.remove("open");
+      }
+    }
+
+    els.searchTags.addEventListener("focus", showTagSuggestions);
+    els.searchTags.addEventListener("input", showTagSuggestions);
+    els.searchTags.addEventListener("blur", () => { els.suggestList.style.display = "none"; });
+    els.dateStart.addEventListener("change", renderList);
+    els.dateEnd.addEventListener("change", renderList);
+
+    let activeArticle = null;
+    function showArticle(art) {
+      activeArticle = art;
+      const isMobile = window.innerWidth <= 768;
+      const targetTitle = isMobile ? els.modalTitle : els.viewTitle;
+      const targetMeta = isMobile ? els.modalMeta : els.viewMeta;
+      const targetBody = isMobile ? els.modalBody : els.viewBody;
+      const targetTags = isMobile ? els.modalTags : els.viewTags;
+
+      targetTitle.textContent = art.title;
+      targetMeta.textContent = `投稿日: ${art.date}`;
+      targetBody.textContent = art.body;
+
+      targetTags.innerHTML = "";
+      if (art.tags && art.tags.length > 0) {
+        art.tags.forEach(tag => {
+          const a = document.createElement("a"); a.className = "tag-link"; a.textContent = `#${tag}`;
+          a.addEventListener("click", (e) => { e.preventDefault(); executeTagSearch(tag); });
+          targetTags.appendChild(a);
+        });
+        targetTags.style.display = "flex";
+      } else { targetTags.style.display = "none"; }
+
+      if (isMobile) { els.mobileModal.classList.add("open"); } 
+      else { els.viewerPlaceholder.style.display = "none"; els.viewer.style.display = "block"; }
+    }
+
+    function handleCopy() {
+      if (!activeArticle) return;
+      navigator.clipboard.writeText(activeArticle.body).then(() => {
+        const targetBtn = window.innerWidth <= 768 ? els.modalCopyBtn : els.copyBodyBtn;
+        const originalText = targetBtn.textContent; targetBtn.textContent = "📋 コピー完了！";
+        setTimeout(() => targetBtn.textContent = originalText, 1500);
+      });
+    }
+    els.copyBodyBtn.addEventListener("click", handleCopy);
+    els.modalCopyBtn.addEventListener("click", handleCopy);
+
+    els.modalCloseBtn.addEventListener("click", () => els.mobileModal.classList.remove("open"));
+    els.mobileModal.addEventListener("click", (e) => { if (e.target === els.mobileModal) els.mobileModal.classList.remove("open"); });
+
+    els.mobileToggleBtn.addEventListener("click", () => {
+      els.filterSection.classList.toggle("open");
+      els.mobileToggleBtn.textContent = els.filterSection.classList.contains("open") ? "▲ 検索・インポート条件を閉じる" : "🔍 検索・インポート条件を開く";
+    });
+
+    els.sortToggleBtn.addEventListener("click", () => {
+      currentSortOrder = (currentSortOrder === "desc") ? "asc" : "desc";
+      els.sortToggleBtn.textContent = (currentSortOrder === "desc") ? "▼ 新しい順" : "▲ 古い順";
+      renderList();
+    });
+
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 768) {
+        if (els.mobileModal.classList.contains("open")) els.mobileModal.classList.remove("open");
+        if (activeArticle) {
+          els.viewerPlaceholder.style.display = "none"; els.viewer.style.display = "block";
+          els.viewTitle.textContent = activeArticle.title; els.viewMeta.textContent = `投稿日: ${activeArticle.date}`; els.viewBody.textContent = activeArticle.body;
+          els.viewTags.innerHTML = "";
+          if (activeArticle.tags && activeArticle.tags.length > 0) {
+            activeArticle.tags.forEach(tag => {
+              const a = document.createElement("a"); a.className = "tag-link"; a.textContent = `#${tag}`;
+              a.addEventListener("click", (e) => { e.preventDefault(); executeTagSearch(tag); });
+              els.viewTags.appendChild(a);
+            });
+            els.viewTags.style.display = "flex";
+          } else { els.viewTags.style.display = "none"; }
+        }
+      }
+    });
+
+    els.dropzone.addEventListener("click", () => els.zipInput.click());
+    els.zipInput.addEventListener("change", (e) => processZip(e.target.files[0]));
+    els.dropzone.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; els.dropzone.classList.add("dragover"); });
+    els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); });
+    els.dropzone.addEventListener("dragleave", (e) => { e.preventDefault(); dragDepth--; if (dragDepth <= 0) els.dropzone.classList.remove("dragover"); });
+    els.dropzone.addEventListener("drop", (e) => {
+      e.preventDefault(); dragDepth = 0; els.dropzone.classList.remove("dragover");
+      if (e.dataTransfer.files?.[0]) processZip(e.dataTransfer.files[0]);
+    });
+
+    els.searchQuery.addEventListener("input", renderList);
+
+    function htmlToText(value) {
+      let text = value;
+      text = text.replace(/<br\s*\/?>/gi, "\n");
+      text = text.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li|ul|ol|blockquote|pre|tr)>/gi, "\n");
+      text = text.replace(/<hr\s*\/?>/gi, "\n---\n");
+      text = text.replace(/<script[\s\S]*?<\/script>/gi, "");
+      text = text.replace(/<style[\s\S]*?<\/style>/gi, "");
+      text = text.replace(/<[^>]+>/g, "");
+      const ta = document.createElement("textarea"); ta.innerHTML = text; text = ta.value;
+      text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n{3,}/g, "\n\n");
+      return text.trim();
+    }
+  </script>
+</body>
+</html>
