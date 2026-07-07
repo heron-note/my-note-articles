@@ -309,12 +309,34 @@
   <script>
     "use strict";
 
+    function htmlToText(value) {
+      let text = value;
+      text = text.replace(/<br\s*\/?>/gi, "\n");
+      text = text.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li|ul|ol|blockquote|pre|tr)>/gi, "\n");
+      text = text.replace(/<hr\s*\/?>/gi, "\n---\n");
+      const scriptTag = new RegExp("<scr" + "ipt[\\s\\S]*?</scr" + "ipt>", "gi");
+      const styleTag = new RegExp("<style[\\s\\S]*?</sty" + "le>", "gi");
+      text = text.replace(scriptTag, "");
+      text = text.replace(styleTag, "");
+      text = text.replace(/<[^>]+>/g, "");
+      const ta = document.createElement("textarea");
+      ta.innerHTML = text;
+      text = ta.value;
+      text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n{3,}/g, "\n\n");
+      return text.trim();
+    }
+
     window.addEventListener("load", () => {
       if (typeof JSZip === "undefined") {
         document.getElementById("status").textContent = "エラー: jszip.min.js 未読込";
         return;
       }
-      initApp();
+      try {
+        initApp();
+      } catch (err) {
+        console.error(err);
+        document.getElementById("status").textContent = "エラー: 初期化失敗 - " + err.message;
+      }
     });
 
     function initApp() {
@@ -415,6 +437,34 @@
         morphOverlayDetail: document.getElementById("morphOverlayDetail")
       };
 
+      function bindUiEvents() {
+        els.dropzone.addEventListener("click", () => els.zipInput.click());
+        els.zipInput.addEventListener("change", (e) => {
+          processZip(e.target.files[0]);
+          e.target.value = "";
+        });
+        els.dropzone.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; els.dropzone.classList.add("dragover"); });
+        els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); });
+        els.dropzone.addEventListener("dragleave", (e) => { e.preventDefault(); dragDepth--; if (dragDepth <= 0) els.dropzone.classList.remove("dragover"); });
+        els.dropzone.addEventListener("drop", (e) => {
+          e.preventDefault();
+          dragDepth = 0;
+          els.dropzone.classList.remove("dragover");
+          if (e.dataTransfer.files?.[0]) processZip(e.dataTransfer.files[0]);
+        });
+        els.mobileToggleBtn.addEventListener("click", () => {
+          els.filterSection.classList.toggle("open");
+          els.mobileToggleBtn.textContent = els.filterSection.classList.contains("open")
+            ? "検索・インポート条件を閉じる"
+            : "検索・インポート条件を開く";
+        });
+        els.searchToggleBtn.addEventListener("click", () => {
+          setSearchSectionOpen(!els.searchSection.classList.contains("open"));
+        });
+      }
+
+      bindUiEvents();
+
       function idbRequest(req) {
         return new Promise((resolve, reject) => {
           req.onsuccess = () => resolve(req.result);
@@ -454,6 +504,7 @@
         });
       };
       request.onerror = () => { els.status.textContent = "エラー: DB接続失敗"; };
+      request.onblocked = () => { els.status.textContent = "DB更新待機中（他タブを閉じてください）"; };
 
       function rebuildNounMaps() {
         nounById = new Map();
@@ -497,10 +548,6 @@
       function setSearchSectionOpen(open) {
         els.searchSection.classList.toggle("open", open);
         updateSearchToggleLabel();
-      }
-        if (art.nounsIndexed === true) return false;
-        if (Array.isArray(art.nounIds) && art.nounIds.length > 0) return false;
-        return true;
       }
 
       function updateMorphOverlay() {
@@ -1269,17 +1316,6 @@
       els.modalCloseBtn.addEventListener("click", () => els.mobileModal.classList.remove("open"));
       els.mobileModal.addEventListener("click", (e) => { if (e.target === els.mobileModal) els.mobileModal.classList.remove("open"); });
 
-      els.mobileToggleBtn.addEventListener("click", () => {
-        els.filterSection.classList.toggle("open");
-        els.mobileToggleBtn.textContent = els.filterSection.classList.contains("open")
-          ? "検索・インポート条件を閉じる"
-          : "検索・インポート条件を開く";
-      });
-
-      els.searchToggleBtn.addEventListener("click", () => {
-        setSearchSectionOpen(!els.searchSection.classList.contains("open"));
-      });
-
       els.articleTabBtn.addEventListener("click", () => setListTab("article"));
       els.nounTabBtn.addEventListener("click", () => setListTab("noun"));
       els.clearNounFilterBtn.addEventListener("click", clearNounFilter);
@@ -1309,21 +1345,6 @@
         }
       });
 
-      els.dropzone.addEventListener("click", () => els.zipInput.click());
-      els.zipInput.addEventListener("change", (e) => {
-        processZip(e.target.files[0]);
-        e.target.value = "";
-      });
-      els.dropzone.addEventListener("dragenter", (e) => { e.preventDefault(); dragDepth++; els.dropzone.classList.add("dragover"); });
-      els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); });
-      els.dropzone.addEventListener("dragleave", (e) => { e.preventDefault(); dragDepth--; if (dragDepth <= 0) els.dropzone.classList.remove("dragover"); });
-      els.dropzone.addEventListener("drop", (e) => {
-        e.preventDefault();
-        dragDepth = 0;
-        els.dropzone.classList.remove("dragover");
-        if (e.dataTransfer.files?.[0]) processZip(e.dataTransfer.files[0]);
-      });
-
       els.searchQuery.addEventListener("input", renderList);
       els.searchNoun.addEventListener("focus", () => showNounSuggestions(true));
       els.searchNoun.addEventListener("input", () => {
@@ -1335,21 +1356,6 @@
       els.nounSuggestList.addEventListener("scroll", onNounSuggestScroll);
       els.dateStart.addEventListener("input", handleDateInput);
       els.dateEnd.addEventListener("input", handleDateInput);
-
-      function htmlToText(value) {
-        let text = value;
-        text = text.replace(/<br\s*\/?>/gi, "\n");
-        text = text.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li|ul|ol|blockquote|pre|tr)>/gi, "\n");
-        text = text.replace(/<hr\s*\/?>/gi, "\n---\n");
-        text = text.replace(/<script[\s\S]*?<\/script>/gi, "");
-        text = text.replace(/<style[\s\S]*?<\/style>/gi, "");
-        text = text.replace(/<[^>]+>/g, "");
-        const ta = document.createElement("textarea");
-        ta.innerHTML = text;
-        text = ta.value;
-        text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n{3,}/g, "\n\n");
-        return text.trim();
-      }
     }
   </script>
 </body>
