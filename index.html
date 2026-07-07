@@ -217,7 +217,7 @@
     let db = null;
     let allArticles = [];
     let dragDepth = 0;
-    let currentSortOrder = "desc"; // デフォルト最新順
+    let currentSortOrder = "desc";
 
     const els = {
       dropzone: document.getElementById("dropzone"),
@@ -256,11 +256,11 @@
       };
     }
 
-    // 2. ZIPファイルを直接解体してインポート
+    // 2. ZIPファイルを非同期で「全件パース」してから一気にDBへ保存（トランザクション切れを完全に防止）
     async function processZip(file) {
       if (!file) return;
       els.status.className = "status";
-      els.status.textContent = "zip読み込み中...";
+      els.status.textContent = "zip展開中...";
 
       try {
         const zip = await JSZip.loadAsync(file);
@@ -268,11 +268,10 @@
         
         if (xmlEntries.length === 0) throw new Error("zip内にXMLが見つかりません。");
 
-        els.status.textContent = "同期中...";
-        const transaction = db.transaction(STORE_NAME, "readwrite");
-        const store = transaction.objectStore(STORE_NAME);
-        let importCount = 0;
+        els.status.textContent = "データ解析中...";
+        const parsedArticles = [];
 
+        // 1. まず非同期処理（zip展開＆XMLパース）をすべて完全に終わらせて配列に溜める
         for (const path of xmlEntries) {
           const xmlText = await zip.files[path].async("string");
           const doc = new DOMParser().parseFromString(xmlText, "application/xml");
@@ -299,9 +298,19 @@
               if (!tags.includes(match[1])) tags.push(match[1]);
             }
 
-            store.put({ title, date, body, tags });
-            importCount++;
+            parsedArticles.push({ title, date, body, tags });
           }
+        }
+
+        // 2. 完全に溜まった状態から、一撃で同期的にIndexedDBへ高速コミットする（絶対に途中でトランザクションが切れない）
+        els.status.textContent = "DBへ保存中...";
+        const transaction = db.transaction(STORE_NAME, "readwrite");
+        const store = transaction.objectStore(STORE_NAME);
+        let importCount = 0;
+
+        for (const art of parsedArticles) {
+          store.put(art);
+          importCount++;
         }
 
         transaction.oncomplete = () => {
@@ -320,7 +329,7 @@
       return inputStr.replace(/ /g, " ").toLowerCase().split(/\s+/).filter(w => w);
     }
 
-    // 3. リスト描画とソートの反映
+    // 3. リスト描画とソート
     function renderList() {
       const queryWords = splitKeywords(els.searchQuery.value);
       const tagWords = splitKeywords(els.searchTags.value);
@@ -335,7 +344,6 @@
         return matchQuery && matchTags;
       });
 
-      // 現在のソート状態で並び替え
       filtered.sort((a, b) => {
         return currentSortOrder === "desc" 
           ? new Date(b.date) - new Date(a.date) 
@@ -359,7 +367,6 @@
       });
     }
 
-    // 4. ソート順切り替えイベント
     els.sortToggleBtn.addEventListener("click", () => {
       if (currentSortOrder === "desc") {
         currentSortOrder = "asc";
@@ -371,7 +378,6 @@
       renderList();
     });
 
-    // 5. 記事ビューアとコピー
     let activeArticle = null;
     function showArticle(art) {
       activeArticle = art;
@@ -412,7 +418,7 @@
       text = text.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li|ul|ol|blockquote|pre|tr)>/gi, "\n");
       text = text.replace(/<hr\s*\/?>/gi, "\n---\n");
       text = text.replace(/<script[\s\S]*?<\/script>/gi, "");
-      text = text.replace(/<style[\s\S]*?<\/style>/gi, ""); // 👈 修正：閉じタグを正しく直しました
+      text = text.replace(/<style[\s\S]*?<\/style>/gi, "");
       text = text.replace(/<[^>]+>/g, "");
       const ta = document.createElement("textarea");
       ta.innerHTML = text;
