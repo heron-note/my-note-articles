@@ -165,14 +165,12 @@
 <body>
 
   <div class="wrapper">
-    <!-- サイドバー -->
     <sidebar>
       <div>
         <h1>記事検索・管理スタジオ</h1>
         <div id="status" class="status">DB接続中...</div>
       </div>
 
-      <!-- ZIP直接ドロップエリア -->
       <div class="card">
         <div id="dropzone" class="dropzone">
           <div style="font-weight:600; font-size:0.85rem;">zip をドロップ または クリック</div>
@@ -180,7 +178,6 @@
         </div>
       </div>
 
-      <!-- 検索コントロールのみ（ソート枠を排除してスッキリ） -->
       <div class="card" style="display:flex; flex-direction:column; gap:8px;">
         <div>
           <label for="searchQuery">フリーワード検索</label>
@@ -192,17 +189,14 @@
         </div>
       </div>
 
-      <!-- リストヘッダー（ソート切り替えボタンをリスト直上に配置） -->
       <div class="list-header">
         <span id="matchCount" class="match-count">該当: 0件</span>
         <button id="sortToggleBtn" class="sort-toggle">▼ 新しい順</button>
       </div>
       
-      <!-- 記事リスト -->
       <div id="articleList" class="article-list"></div>
     </sidebar>
 
-    <!-- メインビューア -->
     <main>
       <div id="viewer" class="viewer" style="display: none;">
         <h2 id="viewTitle">記事タイトル</h2>
@@ -323,7 +317,7 @@
     }
 
     function splitKeywords(inputStr) {
-      return inputStr.replace(/　/g, " ").toLowerCase().split(/\s+/).filter(w => w);
+      return inputStr.replace(/ /g, " ").toLowerCase().split(/\s+/).filter(w => w);
     }
 
     // 3. リスト描画とソートの反映
@@ -365,7 +359,7 @@
       });
     }
 
-    // 4. ソート順切り替えイベント（ボタンをコントロールエリアから排除）
+    // 4. ソート順切り替えイベント
     els.sortToggleBtn.addEventListener("click", () => {
       if (currentSortOrder === "desc") {
         currentSortOrder = "asc";
@@ -414,26 +408,16 @@
 
     function htmlToText(value) {
       let text = value;
-      text = text.replace(/<br\s*\/?>/gi, "
-");
-      text = text.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li|ul|ol|blockquote|pre|tr)>/gi, "
-");
-      text = text.replace(/<hr\s*\/?>/gi, "
----
-");
+      text = text.replace(/<br\s*\/?>/gi, "\n");
+      text = text.replace(/<\/(p|div|h1|h2|h3|h4|h5|h6|li|ul|ol|blockquote|pre|tr)>/gi, "\n");
+      text = text.replace(/<hr\s*\/?>/gi, "\n---\n");
       text = text.replace(/<script[\s\S]*?<\/script>/gi, "");
-      text = text.replace(/<style[\s\S]*?<\/script>/gi, "");
+      text = text.replace(/<style[\s\S]*?<\/style>/gi, ""); // 👈 修正：閉じタグを正しく直しました
       text = text.replace(/<[^>]+>/g, "");
       const ta = document.createElement("textarea");
       ta.innerHTML = text;
       text = ta.value;
-      text = text.replace(/
-/g, "
-").replace(//g, "
-").replace(/
-{3,}/g, "
-
-");
+      text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n{3,}/g, "\n\n");
       return text.trim();
     }
   </script>
